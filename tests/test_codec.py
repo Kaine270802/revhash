@@ -106,7 +106,8 @@ def test_header_le_and_magic():
     blob = revhash.compress(data, codec="zstd")
     assert blob[:4] == b"RVH1"
     # version at offset 4
-    assert blob[4] == 1
+    # Coordinator M3a-FU: mọi blob mới ghi version=2 theo freeze api_v05.md (dual-read vẫn nhận 1)
+    assert blob[4] == 2
     # codec_id LE at offset 5
     codec_id = blob[5]
     assert codec_id in (0, 1, 2, 3, 4)

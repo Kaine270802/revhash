@@ -119,8 +119,8 @@ def test_bundle_hash_version_size():
     assert hasattr(revhash_embedded, "__bundle_hash__")
     assert revhash_embedded.__bundle_hash__.startswith("sha256:")
     assert len(revhash_embedded.__bundle_hash__) == len("sha256:") + 64
-    assert revhash_embedded.__version__ == "0.4.0"
-    assert revhash.__version__ == "0.4.0"
+    assert revhash_embedded.__version__ == "0.5.0"
+    assert revhash.__version__ == "0.5.0"
     p = pathlib.Path("revhash_embedded.py")
     assert p.exists()
     assert p.stat().st_size < 512000
@@ -163,7 +163,7 @@ def test_single_file_vendored_import_as_revhash_subprocess(tmp_path):
     code = """
 import revhash_embedded as revhash
 print(revhash.__version__)
-assert revhash.__version__ == "0.4.0"
+assert revhash.__version__ == "0.5.0"
 blob = revhash.compress(b"hello")
 assert revhash.decompress(blob) == b"hello"
 """

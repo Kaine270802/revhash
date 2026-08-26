@@ -7,8 +7,13 @@ Implements docs/api.md §3.3 correctly:
 - Fallback codecs (gzip/lzma/brotli/store) streamed per-chunk via their
   incremental compressors.
 - Header (RevHashHeader) before stream, dict_data embedded, then
-  compressed_stream, then footer: per-chunk CRC32 array + global SHA256 +
-  footer magic ``RVHE``.
+  compressed_stream, then footer: per-chunk CRC32 array + header SHA256
+  (v2) + global SHA256 + footer magic ``RVHE``.
+
+Blob format versioning (docs/api_v05.md): new blobs are written as v2
+(footer carries ``header_sha256`` = sha256 of the final header bytes).
+Readers accept both v1 (legacy, no header_sha256) and v2; v2 blobs have
+their header MAC verified before any decompression happens.
 
 All ``compress_*`` paths are O(1) memory: only ``read(chunk_size)`` loops,
 never ``read()`` whole file.
@@ -40,6 +45,7 @@ from .file_text import (
     _resolve_src,
 )
 from .header import (
+    FOOTER_HEADER_SHA_SIZE,
     FOOTER_MAGIC,
     FOOTER_MAGIC_SIZE,
     FOOTER_SHA_SIZE,
@@ -52,6 +58,10 @@ from .header import (
 )
 
 # ── Internal helpers ───────────────────────────────────────────────────────
+
+# Reusable decode-block size for the zstd hot path (Coordinator M3a-RF).
+# Constant regardless of file size — keeps decompress O(1) memory.
+_DECOMP_BLOCK_SIZE: int = 1 << 18
 
 
 def _reader_remaining_seekable(reader: BinaryIO) -> int | None:
@@ -110,13 +120,15 @@ class _LimitedReader:
         return n
 
 
-def _parse_header_from_reader(reader: BinaryIO) -> tuple[RevHashHeader, int]:
+def _parse_header_from_reader(reader: BinaryIO) -> tuple[RevHashHeader, int, bytes]:
     """Read header (+dict) from *reader* at current position.
 
-    Returns (header, header_end_pos) where header_end_pos is absolute tell offset
-    after header+dict (start of compressed stream).  Reader must be at start.
+    Returns (header, header_end_pos, hdr_full_bytes) where header_end_pos is
+    absolute tell offset after header+dict (start of compressed stream) and
+    hdr_full_bytes are the raw final header bytes (23B header + dict_data).
+    Reader must be at start.
 
-    Raises RevHashCorruptedError on truncation/bad magic.
+    Raises RevHashCorruptedError on truncation/bad magic/unsupported version.
     """
     # Need 23 bytes
     # Some readers are non-seekable streams (no peek); we just read.
@@ -136,7 +148,7 @@ def _parse_header_from_reader(reader: BinaryIO) -> tuple[RevHashHeader, int]:
     # validate magic/version quickly
     if magic not in (b"RVH1", b"RVH\x01"):
         raise RevHashCorruptedError(f"bad magic {magic!r}")
-    if version != 1:
+    if version not in (1, 2):
         raise RevHashCorruptedError(f"unsupported version {version}")
     dict_data = b""
     if dict_len > 0:
@@ -153,14 +165,26 @@ def _parse_header_from_reader(reader: BinaryIO) -> tuple[RevHashHeader, int]:
         end_pos = HEADER_SIZE + dict_len
     # If reader is BytesIO and we used read, tell matches.
     # For safety, compute header_len
-    return header, end_pos
+    return header, end_pos, full
 
 
 def _compute_footer_len(header: RevHashHeader) -> int:
-    if header.original_size == UNKNOWN_SIZE:
-        return FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
-    nc = header.num_chunks
-    return nc * 4 + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
+    """Footer length for *header* — version-aware (v1: +0, v2: +32 header MAC)."""
+    return header.footer_len()
+
+
+def _final_header_sha(header: RevHashHeader) -> bytes:
+    """SHA256 over the FINAL header bytes (post original_size patch / rewrite) — v2 footer MAC."""
+    return hashlib.sha256(header.to_bytes()).digest()
+
+
+def _verify_header_mac(header: RevHashHeader, hdr_full: bytes, header_sha_expected: bytes) -> None:
+    """Verify v2 header MAC (sha256 of raw header+dict bytes) BEFORE decompression.
+
+    Raises RevHashCorruptedError on mismatch. No-op for v1 blobs.
+    """
+    if header.version >= 2 and hashlib.sha256(hdr_full).digest() != header_sha_expected:
+        raise RevHashCorruptedError("header SHA256 mismatch — header fields tampered (v2)")
 
 
 # ── Compress stream ────────────────────────────────────────────────────────
@@ -400,7 +424,8 @@ def compress_stream(
 
     # Determine what footer to write based on final header state
     if header.original_size == UNKNOWN_SIZE:
-        # spec: 0 CRCs
+        # spec: 0 CRCs; v2 footer still carries header_sha256 (docs/api_v05.md Q6)
+        writer.write(_final_header_sha(header))
         writer.write(sha.digest())
         writer.write(FOOTER_MAGIC)
         footer_crcs_written = []
@@ -413,6 +438,8 @@ def compress_stream(
         # Write crcs array
         if crcs:
             writer.write(struct.pack(f"<{len(crcs)}I", *crcs))
+        # v2: header MAC computed AFTER any original_size patch above → header.to_bytes() is final
+        writer.write(_final_header_sha(header))
         writer.write(sha.digest())
         writer.write(FOOTER_MAGIC)
         footer_crcs_written = crcs
@@ -430,7 +457,7 @@ def compress_stream(
     # If codec != store and compressed_size > store_est then store would be smaller.
     store_size_est = 0
     if codec_name != "store" and compressed_size > 0 and total_raw > 0:
-        store_size_est = 23 + total_raw + len(crcs) * 4 + 32 + 4  # store header 23 + raw + footer
+        store_size_est = 23 + total_raw + len(crcs) * 4 + FOOTER_HEADER_SHA_SIZE + 32 + 4  # v2 footer
         if compressed_size > store_size_est:
             # Attempt fallback if both reader and writer seekable (so we can reread raw)
             try:
@@ -459,9 +486,10 @@ def compress_stream(
                         if not chunk:
                             break
                         writer.write(chunk)
-                    # Footer for store (same crcs/sha as before)
+                    # Footer for store (same crcs/sha as before); v2 MAC over the rewritten store header
                     if crcs:
                         writer.write(struct.pack(f"<{len(crcs)}I", *crcs))
+                    writer.write(hashlib.sha256(store_header.to_bytes()).digest())
                     writer.write(sha.digest())
                     writer.write(FOOTER_MAGIC)
                     # Update tracking variables to reflect store fallback
@@ -527,7 +555,7 @@ def decompress_stream(
         start_reader_pos = 0
 
     # Parse header + embedded dict
-    header, header_end = _parse_header_from_reader(reader)
+    header, header_end, hdr_full = _parse_header_from_reader(reader)
     codec_name = header.codec
     codec_id = header.codec_id
     chunk_size = header.chunk_size
@@ -573,7 +601,7 @@ def decompress_stream(
             # Ensure header_end matches cur_pos (after header+dict)
             # Compute expected footer length based on header
             if header.original_size == UNKNOWN_SIZE:
-                footer_len = FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
+                footer_len = _compute_footer_len(header)
                 # per spec, no CRCs
                 # But as argued, remaining bytes after stream is compressed_len.
                 # So compressed_len = total_blob - header_end - footer_len
@@ -581,7 +609,7 @@ def decompress_stream(
                 per_chunk_crcs_expected = []
             else:
                 nc = header.num_chunks
-                footer_len = nc * 4 + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
+                footer_len = _compute_footer_len(header)
                 compressed_len = total_blob - header_end - footer_len
                 if compressed_len < 0:
                     raise RevHashCorruptedError(
@@ -594,17 +622,22 @@ def decompress_stream(
                 footer_bytes = reader.read(footer_len)
                 if len(footer_bytes) != footer_len:
                     raise RevHashCorruptedError(f"truncated footer, need {footer_len}, got {len(footer_bytes)}")
-                # Parse footer per header.num_chunks
+                # Parse footer per header.num_chunks (v2: [crcs][header_sha256][sha][magic])
+                mac_len = FOOTER_HEADER_SHA_SIZE if header.version >= 2 else 0
                 if nc > 0:
                     per_chunk_crcs_expected = list(struct.unpack(f"<{nc}I", footer_bytes[: nc * 4]))
-                    global_sha_expected = footer_bytes[nc * 4 : nc * 4 + 32]
-                    footer_magic = footer_bytes[nc * 4 + 32 : nc * 4 + 36]
+                    header_sha_expected = footer_bytes[nc * 4 : nc * 4 + mac_len]
+                    global_sha_expected = footer_bytes[nc * 4 + mac_len : nc * 4 + mac_len + 32]
+                    footer_magic = footer_bytes[nc * 4 + mac_len + 32 : nc * 4 + mac_len + 36]
                 else:
                     per_chunk_crcs_expected = []
-                    global_sha_expected = footer_bytes[:32]
-                    footer_magic = footer_bytes[32:36]
+                    header_sha_expected = footer_bytes[:mac_len]
+                    global_sha_expected = footer_bytes[mac_len : mac_len + 32]
+                    footer_magic = footer_bytes[mac_len + 32 : mac_len + 36]
                 if footer_magic != FOOTER_MAGIC:
                     raise RevHashCorruptedError(f"bad footer magic {footer_magic!r}")
+                # v2: verify header MAC from buffered hdr_full BEFORE decompressing anything
+                _verify_header_mac(header, hdr_full, header_sha_expected)
                 # Reset reader to start of compressed stream for decompression
                 reader.seek(header_end, os.SEEK_SET)
             # For unknown case, still need global_sha and footer magic, but per_chunk_crcs empty
@@ -615,10 +648,13 @@ def decompress_stream(
                 foot = reader.read(footer_len)
                 if len(foot) != footer_len:
                     raise RevHashCorruptedError("truncated footer (unknown size)")
-                global_sha_expected = foot[:32]
-                footer_magic = foot[32:36]
+                mac_len = FOOTER_HEADER_SHA_SIZE if header.version >= 2 else 0
+                header_sha_expected = foot[:mac_len]
+                global_sha_expected = foot[mac_len : mac_len + 32]
+                footer_magic = foot[mac_len + 32 : mac_len + 36]
                 if footer_magic != FOOTER_MAGIC:
                     raise RevHashCorruptedError(f"bad footer magic {footer_magic!r}")
+                _verify_header_mac(header, hdr_full, header_sha_expected)
                 reader.seek(header_end, os.SEEK_SET)
             # Now proceed to decompress limited stream
         except RevHashCorruptedError:
@@ -679,15 +715,19 @@ def decompress_stream(
         # We need to find footer tail parsing. For known size, footer_len as before.
         # Then split remaining
         if header.original_size == UNKNOWN_SIZE:
-            if len(remaining) < FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE:
+            footer_len_u = _compute_footer_len(header)
+            if len(remaining) < footer_len_u:
                 raise RevHashCorruptedError("truncated blob (unknown)")
-            # per spec, no CRCs, so compressed = remaining[:-36], footer=remaining[-36:]
+            # per spec, no CRCs; v1 footer 36B, v2 footer 68B (header_sha256 + sha + magic)
             per_chunk_crcs_expected = []
-            global_sha_expected = remaining[-36:-4]
-            footer_magic = remaining[-4:]
+            mac_len_u = FOOTER_HEADER_SHA_SIZE if header.version >= 2 else 0
+            header_sha_expected = remaining[-footer_len_u : -footer_len_u + mac_len_u]
+            global_sha_expected = remaining[-(FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE) : -FOOTER_MAGIC_SIZE]
+            footer_magic = remaining[-FOOTER_MAGIC_SIZE:]
             if footer_magic != FOOTER_MAGIC:
                 raise RevHashCorruptedError(f"bad footer magic {footer_magic!r}")
-            compressed_bytes = remaining[:-36]
+            _verify_header_mac(header, hdr_full, header_sha_expected)
+            compressed_bytes = remaining[:-footer_len_u]
             compressed_len = len(compressed_bytes)
             total_blob = header_end + len(remaining)
             # create limited reader over compressed_bytes via BytesIO
@@ -702,21 +742,27 @@ def decompress_stream(
             # We'll handle decompression differently for this branch.
         else:
             nc = header.num_chunks
-            footer_len = nc * 4 + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
+            footer_len = _compute_footer_len(header)
             if len(remaining) < footer_len:
                 raise RevHashCorruptedError(f"truncated blob: need footer {footer_len}, have {len(remaining)}")
             compressed_bytes = remaining[: len(remaining) - footer_len]
             footer_bytes = remaining[len(remaining) - footer_len :]
+            # v2 layout: [crcs][header_sha256][global_sha256][magic]
+            mac_len = FOOTER_HEADER_SHA_SIZE if header.version >= 2 else 0
             if nc > 0:
                 per_chunk_crcs_expected = list(struct.unpack(f"<{nc}I", footer_bytes[: nc * 4]))
-                global_sha_expected = footer_bytes[nc * 4 : nc * 4 + 32]
-                footer_magic = footer_bytes[nc * 4 + 32 : nc * 4 + 36]
+                header_sha_expected = footer_bytes[nc * 4 : nc * 4 + mac_len]
+                global_sha_expected = footer_bytes[nc * 4 + mac_len : nc * 4 + mac_len + 32]
+                footer_magic = footer_bytes[nc * 4 + mac_len + 32 : nc * 4 + mac_len + 36]
             else:
                 per_chunk_crcs_expected = []
-                global_sha_expected = footer_bytes[:32]
-                footer_magic = footer_bytes[32:36]
+                header_sha_expected = footer_bytes[:mac_len]
+                global_sha_expected = footer_bytes[mac_len : mac_len + 32]
+                footer_magic = footer_bytes[mac_len + 32 : mac_len + 36]
             if footer_magic != FOOTER_MAGIC:
                 raise RevHashCorruptedError(f"bad footer magic {footer_magic!r}")
+            # v2: verify header MAC BEFORE decompressing anything
+            _verify_header_mac(header, hdr_full, header_sha_expected)
             compressed_len = len(compressed_bytes)
             total_blob = header_end + len(remaining)
             from io import BytesIO
@@ -734,28 +780,51 @@ def decompress_stream(
         sha = hashlib.sha256()
         crc_computed: list[int] = []
         total_out = 0
-        # buffer for chunk CRC slicing
-        pending = bytearray()
+        # progressive CRC state (replaces pending byte buffer) — docs/api_v05.md §4
+        crc_cur = 0
+        pos_in_chunk = 0
 
         # helper to process decompressed chunk for crc/sha — local binding
         chunk_size_local = chunk_size
         crc32_local = zlib.crc32
+        crc_append = crc_computed.append
+        sha_update = sha.update
+        w_write = writer.write
 
-        def _process_out(out: bytes) -> None:
-            nonlocal total_out, pending, crc_computed, sha
+        def _process_out(out: bytes | memoryview) -> None:
+            nonlocal total_out, crc_cur, pos_in_chunk
             if not out:
                 return
-            sha.update(out)
+            sha_update(out)
             total_out += len(out)
-            # CRC handling: need to handle UNKNOWN (no crcs) vs known
+            # CRC handling: need to handle UNKNOWN (no crcs) vs known — every byte covered
             if header.original_size != UNKNOWN_SIZE:
-                pending.extend(out)
-                while len(pending) >= chunk_size_local:
-                    chunk = bytes(pending[:chunk_size_local])
-                    crc_computed.append(crc32_local(chunk) & 0xFFFFFFFF)
-                    del pending[:chunk_size_local]
+                mv = out if isinstance(out, memoryview) else memoryview(out)
+                off = 0
+                n = len(mv)
+                room = chunk_size_local - pos_in_chunk
+                if n <= room:
+                    # fast path: whole block lands inside the current chunk
+                    crc_cur = crc32_local(mv, crc_cur)
+                    pos_in_chunk += n
+                    if pos_in_chunk == chunk_size_local:
+                        crc_append(crc_cur & 0xFFFFFFFF)
+                        crc_cur = 0
+                        pos_in_chunk = 0
+                else:
+                    while off < n:
+                        take = min(n - off, room)
+                        crc_cur = crc32_local(mv[off : off + take], crc_cur)
+                        pos_in_chunk += take
+                        off += take
+                        room = chunk_size_local - pos_in_chunk
+                        if pos_in_chunk == chunk_size_local:
+                            crc_append(crc_cur & 0xFFFFFFFF)
+                            crc_cur = 0
+                            pos_in_chunk = 0
+                            room = chunk_size_local
             # writer write
-            writer.write(out)
+            w_write(out)
 
         # Dispatch codec for non-seekable
         if codec_name == "store":
@@ -779,11 +848,21 @@ def decompress_stream(
                     raise RevHashDictError(f"bad dict for zstd: {exc}") from exc
             dctx = zstd.ZstdDecompressor(dict_data=dict_obj)  # type: ignore
             with dctx.stream_reader(reader_for_decomp) as sreader:  # type: ignore
-                while True:
-                    out = sreader.read(131072)
-                    if not out:
-                        break
-                    _process_out(out)
+                read_into = getattr(sreader, "readinto", None)
+                if read_into is not None:
+                    buf = bytearray(_DECOMP_BLOCK_SIZE)
+                    buf_view = memoryview(buf)
+                    while True:
+                        got = read_into(buf_view)
+                        if not got:
+                            break
+                        _process_out(buf_view[:got])
+                else:
+                    while True:
+                        out = sreader.read(_DECOMP_BLOCK_SIZE)
+                        if not out:
+                            break
+                        _process_out(out)
         elif codec_name == "gzip":
             import zlib as _zlib
 
@@ -822,8 +901,6 @@ def decompress_stream(
                 c = reader_for_decomp.read(65536)
                 if not c:
                     break
-                if dec.can_accept_more_input() is False:
-                    break
                 out = dec.process(c)
                 if out:
                     _process_out(out)
@@ -831,10 +908,11 @@ def decompress_stream(
         else:
             raise RevHashUnsupportedCodecError(f"unknown codec {codec_name}")
 
-        # Handle pending tail CRC for known size
-        if header.original_size != UNKNOWN_SIZE and len(pending) > 0:
-            crc_computed.append(zlib.crc32(bytes(pending)) & 0xFFFFFFFF)
-            pending.clear()
+        # Handle tail CRC for known size (partial last chunk held in crc_cur)
+        if header.original_size != UNKNOWN_SIZE and pos_in_chunk > 0:
+            crc_computed.append(crc_cur & 0xFFFFFFFF)
+            crc_cur = 0
+            pos_in_chunk = 0
 
         # Verify
         if header.original_size != UNKNOWN_SIZE:
@@ -882,25 +960,49 @@ def decompress_stream(
     sha = hashlib.sha256()  # type: ignore[no-redef]
     crc_computed: list[int] = []  # type: ignore[no-redef]
     total_out = 0  # type: ignore[no-redef]
-    pending = bytearray()  # type: ignore[no-redef]
+    # progressive CRC state (replaces pending byte buffer) — docs/api_v05.md §4
+    crc_cur = 0  # type: ignore[no-redef]
+    pos_in_chunk = 0  # type: ignore[no-redef]
     chunk_size_local = chunk_size  # type: ignore[no-redef]
     crc32_local = zlib.crc32  # type: ignore[no-redef]
+    crc_append = crc_computed.append
+    sha_update = sha.update
+    w_write = writer.write
 
-    def _proc(out: bytes) -> None:  # type: ignore[no-redef]
-        nonlocal total_out, crc_computed, pending
+    def _proc(out: bytes | memoryview) -> None:  # type: ignore[no-redef]
+        nonlocal total_out, crc_cur, pos_in_chunk
         if not out:
             return
-        sha.update(out)
+        sha_update(out)
         total_out += len(out)
-        writer.write(out)
-        if header.original_size != UNKNOWN_SIZE:
-            pending.extend(out)
-            while len(pending) >= chunk_size_local:
-                chunk = bytes(pending[:chunk_size_local])
-                crc_computed.append(crc32_local(chunk) & 0xFFFFFFFF)
-                del pending[:chunk_size_local]
-        # if unknown, we still accumulate? but spec says no CRC for unknown; still need pending not used
-        # but we skip CRC creation for unknown
+        w_write(out)
+        if header.original_size == UNKNOWN_SIZE:
+            # spec says no CRC for unknown; skip CRC accumulation
+            return
+        mv = out if isinstance(out, memoryview) else memoryview(out)
+        n = len(mv)
+        room = chunk_size_local - pos_in_chunk
+        if n <= room:
+            # fast path: whole block lands inside the current chunk
+            crc_cur = crc32_local(mv, crc_cur)
+            pos_in_chunk += n
+            if pos_in_chunk == chunk_size_local:
+                crc_append(crc_cur & 0xFFFFFFFF)
+                crc_cur = 0
+                pos_in_chunk = 0
+        else:
+            off = 0
+            while off < n:
+                take = min(n - off, room)
+                crc_cur = crc32_local(mv[off : off + take], crc_cur)
+                pos_in_chunk += take
+                off += take
+                room = chunk_size_local - pos_in_chunk
+                if pos_in_chunk == chunk_size_local:
+                    crc_append(crc_cur & 0xFFFFFFFF)
+                    crc_cur = 0
+                    pos_in_chunk = 0
+                    room = chunk_size_local
 
     # Dispatch per codec using limited
     try:
@@ -921,11 +1023,21 @@ def decompress_stream(
                 dict_obj = zstd.ZstdCompressionDict(effective_dict)  # type: ignore
             dctx = zstd.ZstdDecompressor(dict_data=dict_obj)  # type: ignore
             with dctx.stream_reader(limited) as sreader:  # type: ignore
-                while True:
-                    out = sreader.read(131072)
-                    if not out:
-                        break
-                    _proc(out)
+                read_into = getattr(sreader, "readinto", None)
+                if read_into is not None:
+                    buf = bytearray(_DECOMP_BLOCK_SIZE)
+                    buf_view = memoryview(buf)
+                    while True:
+                        got = read_into(buf_view)
+                        if not got:
+                            break
+                        _proc(buf_view[:got])
+                else:
+                    while True:
+                        out = sreader.read(_DECOMP_BLOCK_SIZE)
+                        if not out:
+                            break
+                        _proc(out)
         elif codec_name == "gzip":
             import zlib as _zlib
 
@@ -984,10 +1096,11 @@ def decompress_stream(
         # Wrap as corrupted for generic
         raise RevHashCorruptedError(f"decompress failed ({codec_name}): {exc}") from exc
 
-    # Handle trailing <chunk_size CRC
-    if header.original_size != UNKNOWN_SIZE and len(pending) > 0:
-        crc_computed.append(zlib.crc32(bytes(pending)) & 0xFFFFFFFF)
-        pending.clear()
+    # Handle trailing partial-chunk CRC (held in crc_cur)
+    if header.original_size != UNKNOWN_SIZE and pos_in_chunk > 0:
+        crc_computed.append(crc_cur & 0xFFFFFFFF)
+        crc_cur = 0
+        pos_in_chunk = 0
 
     # Ensure limited fully consumed? Not needed.
 
@@ -1106,7 +1219,7 @@ def compress_file(
                 dst_size = dst_path.stat().st_size
                 if src_size > 0 and codec_name_norm(codec) != "store":
                     nc_store = (src_size + chunk_size - 1) // chunk_size if chunk_size else 0
-                    footer_store = nc_store * 4 + 32 + 4
+                    footer_store = nc_store * 4 + FOOTER_HEADER_SHA_SIZE + 32 + 4  # v2 footer
                     header_store = 23
                     store_est = header_store + src_size + footer_store
                     if dst_size > store_est:

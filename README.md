@@ -4,9 +4,9 @@
 
 *`revhash` means “reversible hash” — lossless compression with header/checksum, not cryptographic SHA/md5.*
 
-> **Version:** `0.4.0` — `import revhash` — embed in one line `cp revhash_embedded.py ./myproject/` → `import revhash_embedded as revhash` (single-file bundle 101KB `<500KB`, `__bundle_hash__` synced).
+> **Version:** `0.5.0` — `import revhash` — embed in one line `cp revhash_embedded.py ./myproject/` → `import revhash_embedded as revhash` (single-file bundle 111KB `<500KB`, `__bundle_hash__` synced).
 
-![version](https://img.shields.io/badge/version-0.4.0-blue) ![tests](https://img.shields.io/badge/tests-155%20PASS-brightgreen) ![bundle](https://img.shields.io/badge/bundle-101KB-blue) ![python](https://img.shields.io/badge/python-%3E%3D3.9-blue) ![github](https://img.shields.io/badge/github-Kaine270802%2Frevhash-black?logo=github)
+![version](https://img.shields.io/badge/version-0.5.0-blue) ![tests](https://img.shields.io/badge/tests-181%20PASS-brightgreen) ![bundle](https://img.shields.io/badge/bundle-111KB-blue) ![ci](https://img.shields.io/badge/CI-GitHub_Actions_3.9%2F3.11%2F3.12-blue) ![coverage](https://img.shields.io/badge/coverage-55.68%25-yellowgreen) ![python](https://img.shields.io/badge/python-%3E%3D3.9-blue) ![github](https://img.shields.io/badge/github-Kaine270802%2Frevhash-black?logo=github)
 
 ---
 
@@ -20,7 +20,9 @@
 | **Chunk overhead** | **0%** streaming single-frame (20 MB 2059 B vs 2060 B whole) | +12% independent | Ratio preserved |
 | **Memory 50 MB stream** | **51 MB peak** (O1) | 100 MB whole | Constant memory |
 | **Dict small file 10 KB** | **30 B vs 150 B (80% saved)** | — | Embedded dict 327 B demo |
-| **Tests** | **155/155 PASS** (0B→50MB + fuzz 100 + tamper 100%, file↔text flex) | — | Independent Verifier + Critic |
+| **Tests** | **181/181 PASS** (0B→50MB + fuzz 100 + tamper 100%, file↔text flex) | — | Independent Verifier + Critic |
+| **Decode 10 MB (cold)** | **657–810 MB/s** (~4–4.9× vs v0.4) | 948 MB/s | Incremental CRC, no triple-copy |
+| **Header integrity (v2)** | SHA-256 MAC over full header — tamper `codec_id/level/chunk_size/original_size` **8/8 blocked** before decode | — | Dual-read: old v0.4 blobs still valid |
 
 *Numbers from `benchmarks/results.json` (Python 3.12.10, zstd 0.25.0, brotli 1.2.0) and `benchmarks/results_filetext.json:277` (10MB zstd `0.000151` vs gzip `0.00491` = **32.5×**) and `reports/verification.md`.*
 
@@ -41,7 +43,7 @@ pip install brotli zstandard
 
 # 3) Verify installation
 python -c "import revhash; print(revhash.__version__); print(revhash.get_available_codecs())"
-# → 0.4.0  {'store': True, 'gzip': True, 'zstd': True, 'lzma': True, 'brotli': True}
+# → 0.5.0  {'store': True, 'gzip': True, 'zstd': True, 'lzma': True, 'brotli': True}
 ```
 
 **Other ways (for contributors who want to edit code):**
@@ -53,10 +55,11 @@ cd revhash
 pip install -e .          # editable install
 pip install pytest psutil ruff mypy  # dev deps
 
-# Run tests (155 tests)
-pytest tests -q            # 155 passed
+# Run tests (181 tests)
+pytest tests -q            # 181 passed
 ruff check src/revhash
 mypy src/revhash --ignore-missing-imports
+pytest --cov=revhash       # coverage gate 53%
 ```
 
 **Single-file embed (no pip needed — just copy):**
@@ -271,32 +274,32 @@ See `benchmarks/baseline_report.md` (304 lines) and `reports/verification.md` §
 
 ---
 
-## ✅ Verification (155/155 PASS)
+## ✅ Verification (181/181 PASS)
 
-Run `pytest tests -q` (7s, Python 3.12.10, `__version__ 0.4.0`):
+Run `pytest tests -q` (7s, Python 3.12.10, `__version__ 0.5.0`):
 
 - **Multi-size:** 0B,1B,100B,1KB,10KB,1MB,10MB,50MB streaming, 200MB mock 1GB, 20MB file — all SHA256 byte-identical.
 - **O1 memory:** 10MB peak 20MB, 50MB peak 51MB — all `<150MB`.
-- **Tamper:** 100/100 fuzz single-byte flip → `verify False` + `RevHashCorruptedError`.
+- **Tamper:** 100/100 fuzz single-byte flip → `verify False` + `RevHashCorruptedError`; header v2 field tamper (`codec_id/level/chunk_size/original_size/footer-MAC`) **24/24 blocked** (`tests/test_header_mac.py`).
 - **Fuzz:** 100 random blobs (codecs/chunks random) → 100/100 roundtrip + tamper.
 - **Dict:** 10KB raw 79% saved, 100KB 91% — matches research.
 - **CLI:** compress/info/verify/decompress/train-dict/benchmark all work.
 
-See `reports/verification.md` + `reports/verification_filetext.md` (155/155).
+See `reports/verification.md`, `reports/verification_filetext.md` + `reports/verification_v05.md` (181/181). Cold benchmark: `python benchmarks/bench_cold.py` → `benchmarks/results_v05.json`.
 
 ---
 
-## 🔍 Audit & Limitations (v0.4.0)
+## 🔍 Audit & Limitations (v0.5.0)
 
 **Critic found 7 risks, 5 fixed:**
 
 | # | Risk | Status |
 |---|------|--------|
-| 1 | Header `chunk_size`/`level` not MAC → tamper same Nc still `verify True` | Documented (needs format bump v0.4) |
+| 1 | Header `chunk_size`/`level` not MAC → tamper same Nc still `verify True` | **FIXED v0.5** — header v2 `header_sha256` MAC, verified before decode |
 | 2 | `decompress_stream` non-seekable `read()` → OOM 10GB pipe | Fixed `SpooledTemporaryFile` + guard >100MB |
 | 7 | `chunk_size`/`dict_len` unlimited → OOM injection | Fixed limit [1K,64M] + 256KB |
 
-**Limitations (documented for v0.4):** header MAC payload-only, non-seekable pipe ≤100MB, `dst=None` OOM guard `>100MB → ValueError` (`file_text.py:104`), small file header overhead 59B.
+**Limitations (documented for v0.5):** MAC is unkeyed digest (integrity not authenticity — HMAC planned v0.6), non-seekable pipe ≤100MB, `dst=None` OOM guard `>100MB → ValueError` (`file_text.py:104`), small file header overhead 59B (+32B footer v2), decode ≥800 MB/s gate borderline (657–810 measured).
 
 ---
 
@@ -306,15 +309,18 @@ See `reports/verification.md` + `reports/verification_filetext.md` (155/155).
 - `docs/api.md` — frozen API + streaming contract
 - `benchmarks/baseline_report.md` — baseline 10KB→100MB
 - `examples/diverse_file_demo.py` — 8 diverse file demos (**NEW**)
-- `CHANGELOG.md` — v0.1 → v0.3
-- Roadmap: v0.1 O1 streaming → v0.2 embed 101KB → v0.2.1 file↔text flex → **v0.3 awesome** polish → v0.4 header CRC + `compressed_len` field + CI
+- `CHANGELOG.md` — v0.1 → v0.5
+- `.github/workflows/ci.yml` — CI matrix Python 3.9/3.11/3.12 (pytest+cov, ruff, mypy, bundle check)
+- `docs/api_v05.md` — v0.5 design freeze (header v2 spec)
+- Roadmap: v0.1 O1 streaming → v0.2 embed 101KB → v0.2.1 file↔text flex → v0.3 polish → v0.4 speed & clean → **v0.5 header v2 MAC + CRC incremental + CI** → v0.6 HMAC keyed + `_decompress_core` split
 
 ---
 
 ## 🤝 Contribute
 
 ```bash
-pytest tests -q                 # 155 tests
+pytest tests -q                 # 181 tests
+pre-commit run --all-files      # ruff + format + mypy hooks
 python benchmarks/run_benchmark.py
 python -m revhash benchmark --size 10M --codec all
 python examples/awesome_demo.py  # 5 demos PASS
@@ -326,4 +332,4 @@ Issues: [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode)
 
 ---
 
-*— Team revhash — built with teamwork-preview workflow*
+*— Team revhash — v0.5.0 built with teamwork-preview workflow (Coordinator + Researcher + 2 Builders + Verifier + Critic)*

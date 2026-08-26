@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "revhash"
-version = "0.4.0"
+version = "0.5.0"
 description = "revhash — reversible lossless compression unlimited (O1 streaming, Zstd single-frame default)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
     "zstandard>=0.20.0",
 ]
-optional-dependencies = { brotli = ["brotli>=1.0.0"] }
+optional-dependencies = { brotli = ["brotli>=1.0.0"], dev = ["pytest>=7.4", "ruff>=0.4", "mypy>=1.8", "pytest-cov>=4.1"] }
 
 [project.scripts]
 revhash = "revhash.cli:main"
@@ -65,3 +65,11 @@ disable_error_code = ["attr-defined", "union-attr", "arg-type", "no-any-return",
 [[tool.mypy.overrides]]
 module = "revhash.algorithms.*"
 ignore_errors = true
+
+[tool.coverage.run]
+source = ["src/revhash"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 53

@@ -22,6 +22,8 @@ load whole file (use read(chunk_size) loops).
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import io
 
 from .codec import (
@@ -31,7 +33,9 @@ from .codec import (
 )
 from .exceptions import RevHashCorruptedError, RevHashDictError, RevHashError, RevHashUnsupportedCodecError
 from .header import (
+    FOOTER_HEADER_SHA_SIZE,
     FOOTER_MAGIC,
+    FOOTER_MAGIC_SIZE,
     FOOTER_SHA_SIZE,
     HEADER_SIZE,
     UNKNOWN_SIZE,
@@ -47,7 +51,7 @@ try:
 except Exception:  # pragma: no cover
     HAS_LZMA = False
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __all__ = [
     "compress",
     "decompress",
@@ -203,10 +207,104 @@ def decompress(blob: bytes, dict_data: bytes | None = None) -> bytes:
     if not isinstance(blob, (bytes, bytearray, memoryview)):
         raise TypeError("blob must be bytes")
     blob = bytes(blob)
+    # F2 fix (critique_v05.md): parse + authenticate the header BEFORE any
+    # large allocation — a hostile blob must not be able to force a giant
+    # sink from a ~100-byte input. api_v05.md §3 verify-first ordering.
+    header = _parse_header_lenient(blob)
+    if header is not None and header.version >= 2 and not _v2_header_mac_ok(blob, header):
+        raise RevHashCorruptedError("header SHA256 mismatch — rejected before preallocation")
+    size_hint = _prealloc_size_hint(header)
     reader = io.BytesIO(blob)
-    writer = io.BytesIO()
+    writer = _PreallocWriter(size_hint) if size_hint is not None else io.BytesIO()
     decompress_stream(reader, writer, dict_data=dict_data)
     return writer.getvalue()
+
+
+# Preallocation cap for the decompress sink. Secondary guard only: the primary
+# defence is the v2 header-MAC verification above; hints above this fall back
+# to BytesIO. v1 legacy blobs carry no header MAC, so for them this cap stays
+# the only bound (accepted behaviour per Coordinator F2 ruling).
+_PREALLOC_MAX = 1 << 30
+
+
+class _PreallocWriter:
+    """Fixed-capacity output sink for ``decompress`` (v0.5 speed, Coordinator M3a-FU).
+
+    Replaces io.BytesIO grow+getvalue (measured ~23ms/10MB on the dev box)
+    with writes into a preallocated buffer sized from the header's
+    original_size, then a single copy to immutable bytes.
+
+    F2 fix: instances are created ONLY after the v2 header MAC has been
+    verified (or for v1/legacy blobs, which have no MAC — bounded by
+    ``_PREALLOC_MAX``). The buffer is sized by an authenticated header, so a
+    hostile blob cannot trigger the allocation before being rejected.
+    """
+
+    __slots__ = ("_buf", "_pos", "_view")
+
+    def __init__(self, size_hint: int) -> None:
+        self._buf = bytearray(size_hint)
+        self._view = memoryview(self._buf)
+        self._pos = 0
+
+    def write(self, data: bytes | bytearray | memoryview) -> int:
+        pos = self._pos
+        end = pos + len(data)
+        if end > len(self._buf):
+            self._buf.extend(bytes(end - len(self._buf)))
+            self._view = memoryview(self._buf)
+        self._view[pos:end] = data
+        self._pos = end
+        return end - pos
+
+    def getvalue(self) -> bytes:
+        return bytes(self._view[: self._pos])
+
+
+def _parse_header_lenient(blob: bytes) -> RevHashHeader | None:
+    """Best-effort header parse for sink selection (F2 fix).
+
+    Returns ``None`` when the blob cannot carry a plausible header — no
+    preallocation happens in that case and canonical validation/errors remain
+    with ``decompress_stream``.
+    """
+    if len(blob) < HEADER_SIZE:
+        return None
+    try:
+        header, _header_end = RevHashHeader.from_bytes(blob, 0)
+    except Exception:  # noqa: BLE001 — malformed input falls back to the BytesIO path
+        return None
+    return header
+
+
+def _v2_header_mac_ok(blob: bytes, header: RevHashHeader) -> bool:
+    """Constant-time check of the v2 footer ``header_sha256`` (F2 fix).
+
+    In both v2 layouts the MAC sits directly before ``global_sha256``, i.e.
+    at ``[-(mac+sha+magic) : -(sha+magic)]`` of the blob. Runs BEFORE any
+    large allocation so a forged ``original_size`` cannot force memory.
+    """
+    tail = FOOTER_HEADER_SHA_SIZE + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE  # 68
+    if len(blob) < header.header_len + tail:
+        return False  # truncated: cannot carry an authenticatable v2 footer
+    stored = blob[-tail : -tail + FOOTER_HEADER_SHA_SIZE]
+    computed = hashlib.sha256(memoryview(blob)[: header.header_len]).digest()
+    return hmac.compare_digest(computed, stored)
+
+
+def _prealloc_size_hint(header: RevHashHeader | None) -> int | None:
+    """Sink size from an already-authenticated/accepted header (F2 fix).
+
+    ``None`` for unparseable headers, UNKNOWN_SIZE, non-positive or over-cap
+    hints — those take the io.BytesIO path; stream-side verification produces
+    the canonical errors.
+    """
+    if header is None:
+        return None
+    size = header.original_size
+    if size == UNKNOWN_SIZE or size <= 0 or size > _PREALLOC_MAX:
+        return None
+    return size
 
 
 def verify(blob: bytes, dict_data: bytes | None = None) -> bool:

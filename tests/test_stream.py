@@ -10,7 +10,7 @@ import pytest
 
 import revhash
 from revhash.exceptions import RevHashCorruptedError
-from revhash.header import HEADER_SIZE, RevHashHeader
+from revhash.header import FOOTER_HEADER_SHA_SIZE, HEADER_SIZE, RevHashHeader
 
 
 class CountingReader:
@@ -132,8 +132,9 @@ def test_per_chunk_crc_and_sha():
         revhash.decompress(bytes(tampered))
 
 
-def test_nonseekable_unknown_36B():
-    # Use stream with non-seekable reader -> UNKNOWN triggers 36B footer
+def test_nonseekable_unknown_68B():
+    # Use stream with non-seekable reader -> UNKNOWN triggers v2 footer (mac+sha+magic = 68B)
+    # Coordinator M3a-FU: đổi tên từ *_36B — footer v2 luôn có header_sha256 dù UNKNOWN (api_v05.md Q6)
     class NSReader:
         def __init__(self, d):
             self.d = d
@@ -175,9 +176,9 @@ def test_nonseekable_unknown_36B():
 
     assert hdr.original_size == UNKNOWN_SIZE
     assert blob[-4:] == b"RVHE"
-    # footer should be 36B (no CRCs)
-    # total blob = header 23 + compressed +36
-    assert len(blob) == HEADER_SIZE + len(data) + 36
+    # footer v2 = header_sha256 32 + sha 32 + magic 4 = 68B (no CRCs)
+    # total blob = header 23 + compressed + 68
+    assert len(blob) == HEADER_SIZE + len(data) + FOOTER_HEADER_SHA_SIZE + 36
     # decompress should handle UNKNOWN via buffer fallback
     out = revhash.decompress(blob)
     assert out == data

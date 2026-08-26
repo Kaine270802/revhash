@@ -123,7 +123,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import BinaryIO, Tuple
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __bundle_hash__ = "{bundle_hash}"
 __all__ = ["compress","decompress","compress_text","decompress_text","compress_file","decompress_file","compress_stream","decompress_stream","verify","get_info","get_available_codecs","RevHashError","RevHashCorruptedError","RevHashDictError","RevHashUnsupportedCodecError","RevHashHeader"]
 

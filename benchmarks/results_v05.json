@@ -1,0 +1,40 @@
+{
+  "protocol": "cold: fresh data per run, gc.collect, skip first run, median-of-5",
+  "payload_mb": 10,
+  "codec": "zstd",
+  "compress": {
+    "runs_s": [
+      0.01037,
+      0.01125,
+      0.01036,
+      0.0106,
+      0.01023
+    ],
+    "mbs": [
+      963.9,
+      889.1,
+      965.3,
+      943.5,
+      977.2
+    ],
+    "median_mbs": 963.9
+  },
+  "decompress": {
+    "runs_s": [
+      0.01327,
+      0.01318,
+      0.01336,
+      0.01385,
+      0.0131
+    ],
+    "mbs": [
+      753.5,
+      758.5,
+      748.6,
+      722.2,
+      763.2
+    ],
+    "median_mbs": 753.5
+  },
+  "ratio": 0.000107
+}

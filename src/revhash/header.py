@@ -13,8 +13,13 @@ Offset  Size  Field          Type        Description
 23      N     dict_data      bytes       N = dict_len
 23+N    ...   compressed_stream
 ...     4*Nc  per_chunk_crc  uint32 LE[]  Nc = ceil(original_size/chunk_size) ; 0 if unknown
+...     32    header_sha256  bytes       v2 only: SHA256 of final header (+dict), before global_sha256
 ...     32    global_sha256  bytes       SHA256 of original data
 ...     4     footer_magic   bytes       b"RVHE"
+
+Footer layouts (docs/api_v05.md §2):
+  v1 (read-only): [crc_table nc*4] [global_sha256 32] [RVHE 4]; unknown-size drops crc_table.
+  v2 (written):   [crc_table nc*4] [header_sha256 32] [global_sha256 32] [RVHE 4]; unknown-size drops crc_table.
 """
 
 from __future__ import annotations
@@ -30,10 +35,11 @@ from .exceptions import RevHashCorruptedError, RevHashUnsupportedCodecError
 # ── Constants ──────────────────────────────────────────────────────────────
 HEADER_MAGIC: bytes = b"RVH1"  # 0x52 0x56 0x48 0x31
 FOOTER_MAGIC: bytes = b"RVHE"
-HEADER_VERSION: int = 1
+HEADER_VERSION: int = 2
 UNKNOWN_SIZE: int = 0xFFFFFFFFFFFFFFFF
 HEADER_SIZE: int = 23  # 4+1+1+1+4+4+8
 FOOTER_SHA_SIZE: int = 32
+FOOTER_HEADER_SHA_SIZE: int = 32  # v2 only: sha256 of final header (+dict), sits before global_sha256
 FOOTER_MAGIC_SIZE: int = 4
 
 HEADER_STRUCT: struct.Struct = struct.Struct("<4sBBBIIQ")
@@ -86,7 +92,7 @@ class RevHashHeader:
     """RevHash binary header.
 
     Attributes:
-        version: header version (currently 1).
+        version: header version (1 or 2; new blobs write 2 — readers accept both).
         codec: codec name (e.g. "zstd").
         codec_id: numeric codec id.
         level: compression level for the codec.
@@ -151,11 +157,14 @@ class RevHashHeader:
         return HEADER_SIZE + self.dict_len
 
     def footer_len(self) -> int:
-        """Footer length for this header (per spec)."""
+        """Footer length for this header (version-aware, docs/api_v05.md §2).
+
+        v1: nc*4 + 36 (unknown size: 36). v2: nc*4 + 68 (unknown size: 68).
+        """
+        extra = FOOTER_HEADER_SHA_SIZE if self.version >= 2 else 0
         if self.original_size == UNKNOWN_SIZE:
-            return FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE  # per spec Nc=0
-        nc = self.num_chunks
-        return nc * 4 + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
+            return extra + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
+        return self.num_chunks * 4 + extra + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
 
     def to_bytes(self) -> bytes:
         """Serialise header (HEADER_SIZE + dict_data) to bytes.
@@ -211,8 +220,8 @@ class RevHashHeader:
                 pass  # accept
             else:
                 raise RevHashCorruptedError(f"bad magic {magic!r} expected {HEADER_MAGIC!r}")
-        if version != HEADER_VERSION:
-            raise RevHashCorruptedError(f"unsupported version {version}, expected {HEADER_VERSION}")
+        if version not in (1, 2):
+            raise RevHashCorruptedError(f"unsupported version {version}, expected 1 or 2")
         if codec_id not in ID_TO_CODEC:
             raise RevHashUnsupportedCodecError(f"unknown codec_id {codec_id}")
         # Validate limits before allocating dict_data (DoS protection)
@@ -291,7 +300,8 @@ def parse_footer(blob: bytes, header: RevHashHeader, header_end: int) -> tuple[l
         return per_crcs, global_sha, footer_magic
     else:
         nc = header.num_chunks
-        expected_footer_len = nc * 4 + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
+        mac_len = FOOTER_HEADER_SHA_SIZE if header.version >= 2 else 0
+        expected_footer_len = nc * 4 + mac_len + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
         # compressed_len = total - header_end - expected_footer_len
         # However due to auto-store / variable compress, we must verify that blob length accommodates
         if total < header_end + expected_footer_len:
@@ -308,8 +318,8 @@ def parse_footer(blob: bytes, header: RevHashHeader, header_end: int) -> tuple[l
             if len(crc_bytes) != nc * 4:
                 raise RevHashCorruptedError("truncated CRC area")
             per_crcs = list(struct.unpack(f"<{nc}I", crc_bytes)) if nc else []
-            # verify SHA position
-            sha_start = crc_start + nc * 4
+            # verify SHA position (v2: skip header_sha256 sitting before global_sha256)
+            sha_start = crc_start + nc * 4 + mac_len
             global_sha = blob[sha_start : sha_start + 32]
         else:
             # original_size ==0 -> nc==0 -> no CRCs

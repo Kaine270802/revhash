@@ -1,4 +1,4 @@
-"""test_header — 18 cases: magic RVH1, version 1, codec_id LE, dict_len, UNKNOWN, Nc/overhead, corruption."""
+"""test_header — 18 cases: magic RVH1, version (v2 default, dual-read v1), codec_id LE, dict_len, UNKNOWN, Nc/overhead, corruption."""
 import struct
 
 import pytest
@@ -6,6 +6,7 @@ import pytest
 import revhash
 from revhash.exceptions import RevHashCorruptedError, RevHashUnsupportedCodecError
 from revhash.header import (
+    FOOTER_HEADER_SHA_SIZE,
     FOOTER_MAGIC,
     FOOTER_MAGIC_SIZE,
     FOOTER_SHA_SIZE,
@@ -26,12 +27,13 @@ def test_magic_rvh1():
     assert hdr.codec == "zstd"
 
 
-def test_version_1():
+def test_version_default_v2():
+    # Coordinator M3a-FU: freeze docs/api_v05.md đổi default ghi mới sang version 2 (dual-read 1+2)
     h = RevHashHeader(codec="gzip", original_size=10)
     b = h.to_bytes()
-    assert b[4] == 1
+    assert b[4] == HEADER_VERSION
     hdr, _ = RevHashHeader.from_bytes(b, 0)
-    assert hdr.version == 1
+    assert hdr.version == HEADER_VERSION
 
 
 def test_codec_id_le_store():
@@ -70,20 +72,22 @@ def test_unknown_size():
     orig = struct.unpack("<Q", b[15:23])[0]
     assert orig == UNKNOWN_SIZE
     assert h.num_chunks == 0
-    assert h.footer_len() == FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
+    # Coordinator M3a-FU: footer v2 luôn có header_sha256 → unknown-size = 32+32+4 = 68B (api_v05.md §2)
+    assert h.footer_len() == FOOTER_HEADER_SHA_SIZE + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
     hdr, _ = RevHashHeader.from_bytes(b, 0)
     assert hdr.original_size == UNKNOWN_SIZE
 
 
 def test_num_chunks_and_overhead():
-    # 100MB /4M =25 chunks, footer 25*4+32+4=136
+    # 100MB /4M =25 chunks, footer v2 25*4+68=168
     h = RevHashHeader(codec="zstd", chunk_size=4 * 1024 * 1024, original_size=100 * 1024 * 1024)
     assert h.num_chunks == 25
-    assert h.footer_len() == 25 * 4 + 36
+    # Coordinator M3a-FU: công thức footer-len v2 theo api_v05.md §2 (nc*4 + header_sha256 32 + sha 32 + magic 4)
+    assert h.footer_len() == 25 * 4 + FOOTER_HEADER_SHA_SIZE + FOOTER_SHA_SIZE + FOOTER_MAGIC_SIZE
     assert h.header_len == HEADER_SIZE
     # overhead calc
     overhead = HEADER_SIZE + h.footer_len()
-    assert overhead == 23 + 136
+    assert overhead == HEADER_SIZE + 25 * 4 + 68
 
 
 def test_header_size_constant():
@@ -235,7 +239,8 @@ def test_unknown_footer_no_crcs():
         def seekable(self):
             return False
 
-    # alternative: use decompress path with 36B footer
-    # simpler: check that UNKNOWN header has footer_len 36
+    # alternative: use decompress path with v2 footer
+    # simpler: check that UNKNOWN header has footer_len 68 (v2: mac+sha+magic)
     h = RevHashHeader(codec="store", original_size=UNKNOWN_SIZE)
-    assert h.footer_len() == 36
+    # Coordinator M3a-FU: UNKNOWN vẫn ghi header_sha256 ở footer v2 (api_v05.md Q6) → 68B
+    assert h.footer_len() == FOOTER_HEADER_SHA_SIZE + 36

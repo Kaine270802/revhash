@@ -7,7 +7,7 @@ import pytest
 
 import revhash
 from revhash.algorithms import selector
-from revhash.header import RevHashHeader, UNKNOWN_SIZE
+from revhash.header import FOOTER_HEADER_SHA_SIZE, RevHashHeader, UNKNOWN_SIZE
 
 
 def gen_repeat(n):
@@ -123,7 +123,8 @@ def test_100MB_mock_25_chunks():
     # mock via header patch not actual 100MB bytes in RAM? use 100MB via header num_chunks
     header = RevHashHeader(codec="zstd", chunk_size=4 * 1024 * 1024, original_size=100 * 1024 * 1024)
     assert header.num_chunks == 25
-    assert header.footer_len() == 25 * 4 + 36
+    # Coordinator M3a-FU: công thức footer-len v2 (api_v05.md §2): nc*4 + header_sha256 32 + sha 32 + magic 4
+    assert header.footer_len() == 25 * 4 + FOOTER_HEADER_SHA_SIZE + 36
     # also test via compress 10MB and verify chunks
     data = gen_repeat(10 * 1024 * 1024)
     blob = revhash.compress(data, chunk_size=4 * 1024 * 1024)
@@ -135,7 +136,8 @@ def test_200MB_rep_1GB_header_patch():
     # 200MB *? header patch 1GB
     hdr = RevHashHeader(codec="zstd", chunk_size=4 * 1024 * 1024, original_size=1024 * 1024 * 1024)
     assert hdr.num_chunks == 256
-    assert hdr.footer_len() == 256 * 4 + 36
+    # Coordinator M3a-FU: footer-len v2 = nc*4 + 68 (api_v05.md §2)
+    assert hdr.footer_len() == 256 * 4 + FOOTER_HEADER_SHA_SIZE + 36
     # patch test: compress 200MB simulated via file sparse
     # Instead test header to_bytes/from_bytes roundtrip for 1GB
     b = hdr.to_bytes()
@@ -280,7 +282,8 @@ def test_large_ratio_not_hardcoded():
 def test_100MB_header_patch_via_mock():
     hdr = RevHashHeader(codec="zstd", chunk_size=4 * 1024 * 1024, original_size=200 * 1024 * 1024)
     assert hdr.num_chunks == 50
-    assert hdr.footer_len() == 50 * 4 + 36
+    # Coordinator M3a-FU: footer-len v2 = nc*4 + 68 (api_v05.md §2)
+    assert hdr.footer_len() == 50 * 4 + FOOTER_HEADER_SHA_SIZE + 36
 
 
 def test_large_stream_with_dict(tmp_path):

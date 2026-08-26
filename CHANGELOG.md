@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-28
+
+Integrity & Throughput — header v2 MAC, CRC luy tien, CI/coverage (team plan `TEAM_PLAN_V05.md`).
+
+### Added
+- Header v2: footer them `header_sha256` (SHA-256 phu toan bo 23B header) — tamper `codec_id/level/chunk_size/original_size` tung field deu bi chan (`verify()` False hoac `RevHashCorruptedError`) truoc khi decompress (`docs/api_v05.md` §2-§3).
+- Dual-read tuong thich nguoc: blob v0.4 (version 1) van doc/verify/decompress binh thuong; moi blob ghi version 2.
+- CI `.github/workflows/ci.yml` matrix Python 3.9/3.11/3.12 (pytest+cov, ruff, mypy, build --check), `tox.ini`, `.pre-commit-config.yaml`; coverage that **53.68%** branch-mode, `fail_under = 53` (`pyproject.toml`).
+- Benchmark quy trinh COLD chuan hoa (data moi moi run, gc.collect, bo run dau, median-of-5): `benchmarks/bench_cold.py`, ket qua `benchmarks/results_v05.json`.
+
+### Changed
+- Decompress: bo triple-copy buffer `pending` (extend/slice/del) thay bang CRC luyen tien state `(crc_cur, pos_in_chunk)` + chaining `zlib.crc32` — byte-for-byte identical voi cach cu (`stream.py` ca hai nhanh `_process_out`/`_proc`).
+- Decompress sink preallocate theo `original_size` peek tu header (memoryview slice-assign, fallback BytesIO cho UNKNOWN/>1GiB) trong `__init__.decompress()`.
+- Doc block 256KB qua `readinto` buffer tai su dung; local binding sha/crc/write ngoai loop.
+- Ket qua cold 10MB text_repeat zstd: decompress **161.2 -> 657–810 MB/s tuy may/lancn (~4.1–4.9x)**; compress ~949–955 MB/s (giu gate >=850). Peak memory 50MB data: 100MB < 150MB (O(1) giu nguyen); prealloc chi sau MAC pass (F2).
+
+### Fixed
+- Brotli non-seekable goi attr khong ton tai `can_accept_more_input()` → crash moi roundtrip brotli non-seekable; dong bo voi nhanh seekable.
+- **OOM-DoS (Critic F2-HIGH):** decompress v2 gio verify header MAC TRUOC khi prealloc sink — blob 113B khai original_size=600MB bi reject <50MB alloc/1ms (truoc fix: peak 600MB). `_peek_size_hint()` khong-validate da xoa (`__init__.py`).
+- **Benchmark artifact (Critic F1):** `benchmarks/bench_cold.py` la script COLD chinh thuc co that, sinh `results_v05.json` (protocol research §3).
+
+### Security Note
+- `header_sha256` la digest KHONG KHOA (integrity, chong loi ghi/corruption) — khong phai authenticity: attacker co kha nang sua chu dong van forge duoc cap header+mac nhat quan. Triet de triet tieu can HMAC keyed (backlog v0.6).
+
+### Known Deviation
+- Gate ke hoach decompress >=800 MB/s o BIEN GIOI, khong reproducible-stable: do doc lap 4 lan (Verifier box + Critic + bench_cold.py) cho daisan **657–810 MB/s** (median tung lan: 753.5 / 782.7 / 808.6 / 757.4 / 666.6), cung may so voi baseline v0.4 = **~4.1–4.9x** (161.2 baseline). Claim bao thu cua builder (666.6) THAP HON so thuc (Critic F4 flag huong nguoc). Phan tich tran: sha256+crc32 bat buoc 100% bytes + copy sang bytes bat bien; vuot on-dinh >=800 doi hoi doi kieu tra ve cua `decompress()` — ngoai pham vi v0.5 §7. Quyet dinh chap-nhan/them-vong thuoc user.
+
 ## [0.4.0] - 2026-08-28
 
 Speed & Clean — buffer 128KB, CRC batch, `__all__` gọn, `mypy` gọn, `0.4.0`.

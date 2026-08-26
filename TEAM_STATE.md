@@ -156,7 +156,7 @@
 - CLI benchmark 1M zstd ratio 0.0034 562 MB/s OK.
 - Handoff nhanh: tạo file 1MB lặp (`hello world`) → `compress_file` → `decompress_file` → SHA256 `a870de38...` **match** (đã chạy `temp_test_compress.py`).
 
-**Handoff:** 7 file đã ghi vào `D:\data optimization\src\revhash\` + `pyproject.toml` root. Sẵn sàng cho M4 Integration (Verifier fuzz + memory profile) & M3b Optimization (dict_builder). Không sửa `dict_builder.py`/`algorithms/` (để trống placeholder).
+**Handoff:** 7 file đã ghi vào `D:\data optimization\src\revhash` + `pyproject.toml` root. Sẵn sàng cho M4 Integration (Verifier fuzz + memory profile) & M3b Optimization (dict_builder). Không sửa `dict_builder.py`/`algorithms/` (để trống placeholder).
 
 ### [Optimization Builder] — Update 2026-08-26 (M3b DONE)
 
@@ -1204,14 +1204,16 @@ eports/critique_awesome.md song song, Coordinator synthesis M6 Handover v0.3-awe
 
 ## [Verifier SpeedClean] - Update 2026-08-28
 
-**Role:** Verifier / QA Speed & Clean (chi chay lenh + ghi bao cao, KHONG sua product files). Artifacts: eports/verification_speed_clean.md + enchmarks/results_speed_clean.json.
+**Role:** Verifier / QA Speed & Clean (chi chay lenh + ghi bao cao, KHONG sua product files). Artifacts: 
+eports/verification_speed_clean.md + enchmarks/results_speed_clean.json.
 
 **1. Ket qua C1-C8 (exit code thuc thi):**
 
 | # | Check | Target | Measured | Verdict |
 |---|-------|--------|----------|---------|
 | C1 | pytest tests -q / test_stream -v | 155 passed; O1 | **155 passed in 5.60s** exit 0; stream 12/12 PASS exit 0 (incl. 	est_counting_reader_o1_no_minus_one, 	est_compress_stream_read_chunk_size_loop) | PASS |
-| C2 | mypy --ignore-missing-imports | 0 issues, 12 files | Success: no issues found in 12 source files exit 0; disable_error_code = dung 5 codes; override con duy nhat evhash.algorithms.* (cli da bo) | PASS |
+| C2 | mypy --ignore-missing-imports | 0 issues, 12 files | Success: no issues found in 12 source files exit 0; disable_error_code = dung 5 codes; override con duy nhat 
+evhash.algorithms.* (cli da bo) | PASS |
 | C3 | ruff check + format + py_compile | 0/0/0 | All checks passed! exit 0; 12 files already formatted exit 0; py_compile exit 0 | PASS |
 | C4a | Speed gate 1MB zstd (median 3 runs) | >700 MB/s | runs 800.6/707.3/782.9 -> **median 782.9** (+14.9% vs baseline 681.45) | PASS |
 | C4b | Speed gate 10MB zstd (median 3 runs) | >850 MB/s | runs 889.7/955.4/986.1 -> **median 955.4** (+13.2% vs baseline 843.61) | PASS |
@@ -1220,7 +1222,8 @@ eports/critique_awesome.md song song, Coordinator synthesis M6 Handover v0.3-awe
 | C4e | CLI benchmark 1M/10M | info | 625.9 / 839.8 MB/s verify=OK exit 0 - harness rieng co buoc verify, khong phai gate harness | INFO/WARN |
 | C5 | README >=5 python blocks + demos | >=5; PASS | README co **6** blocks `python; awesome_demo **5/5 PASS**; diverse_file_demo **8/8 PASS** (incl. large 10MB O1 + bundle parity) | PASS |
 | C6 | CLI help 6 commands | 6 | compress/decompress/info/verify/train-dict/benchmark = 6, exit 0 | PASS |
-| C7 | Version/bundle/wheel | 0.4.0 align; <500KB; PEP440 | import revhash -> 0.4.0; build --check OK **104471B** hash sha256:2bd2b248...524bbc; wheel evhash-0.4.0-py3-none-any.whl (50782B) PEP440 PASS; dist_build_check DA XOA | PASS |
+| C7 | Version/bundle/wheel | 0.4.0 align; <500KB; PEP440 | import revhash -> 0.4.0; build --check OK **104471B** hash sha256:2bd2b248...524bbc; wheel 
+evhash-0.4.0-py3-none-any.whl (50782B) PEP440 PASS; dist_build_check DA XOA | PASS |
 | C8 | CHANGELOG v0.4 | 1 entry | Co ## [0.4.0] - 2026-08-28 nhung **TRUNG 2 LAN** (dong 10 va dong 29) | WARN |
 
 **2. Findings cho Coordinator/Critic:**
@@ -1260,3 +1263,181 @@ eports/critique_awesome.md song song, Coordinator synthesis M6 Handover v0.3-awe
 **Kết luận release: WARN — đủ v0.4.0-rc ngay; CHƯA tag stable public trước khi re-benchmark trung thực (P0 §6 của report). Handoff Coordinator M6: fix P0 → rebuild bundle → pytest 155 → run_benchmark (cold methodology) → cập nhật verification/results JSON.**
 
 **Artifacts:** `reports/critique_speed_clean.md` đã ghi đúng path (duy nhất file này + TEAM_STATE entry; không product file bị sửa). Scripts evidence nằm ở temp dir (`critic_check_cache*.py`, `critic_check_b.py`, `critic_check_c.py`, `mypy_nodisable.ini`) ngoài workspace.
+
+
+## [Infra Builder] — M3b hạ tầng CI/tox/pre-commit/coverage — 2026-08-26
+
+**Files tạo/sửa (không đụng src/tests/embedded/docs):**
+- `.github/workflows/ci.yml` (MỚI): push+PR branch main; matrix py 3.9/3.11/3.12 ubuntu-latest; steps checkout → setup-python → pip install -e ".[dev]" brotli zstandard pytest-cov → pytest --cov=revhash --cov-report=term-missing → ruff check src/revhash → mypy src/revhash --ignore-missing-imports → python scripts/build_embedded.py --check.
+- `tox.ini` (MỚI): envlist py39/py311/py312, isolated_build, deps=pytest/pytest-cov/ruff/mypy/brotli/zstandard, commands cùng chuỗi CI.
+- `.pre-commit-config.yaml` (MỚI): ruff-check (--fix) + ruff-format từ astral-sh/ruff-pre-commit v0.16.4 (khớp local); hook mypy local, entry `mypy src/revhash --ignore-missing-imports`, files `^src/revhash/`.
+- `pyproject.toml` (SỬA, đúng 2 việc): (a) thêm `[tool.coverage.run]` source=["src/revhash"], branch=true + `[tool.coverage.report]` show_missing=true, fail_under=53; (b) thêm extra `dev = ["pytest>=7.4", "ruff>=0.4", "mypy>=1.8", "pytest-cov>=4.1"]` vào inline optional-dependencies (giữ nguyên key brotli — không tách section để tránh xung đột TOML với inline table sẵn có). KHÔNG đổi version/tool.mypy/tool.ruff.
+
+**Coverage đo THẬT (Python 3.12.10, pytest-cov 7.1.0):**
+- Trước khi bật branch=true: TOTAL 56% statement-only.
+- Sau khi thêm config branch=true (đo lại để khớp điều CI enforce): **TOTAL 53.68%** (`coverage report --precision=2`), 155 passed → chốt **fail_under = 53** (làm tròn xuống).
+- Verify gate: "Required test coverage of 53.0% reached. Total coverage: 53.68%", EXIT=0.
+- Lưu ý: builder song song đang sửa stream.py/header.py; lần đo này tests XANH đủ 155/155 nên không cần retry, không dùng số cũ.
+
+**Exit code các lệnh chính (local Windows, tương đương CI):**
+- `python -m pytest tests --cov=revhash --cov-report=term-missing -q` → EXIT=0 (155 passed, cov 53.68%)
+- `ruff check src/revhash` → EXIT=0 (All checks passed)
+- `mypy src/revhash --ignore-missing-imports` → EXIT=0 (no issues, 12 files)
+- `python scripts/build_embedded.py --check` → EXIT=0 (sha256:54400620..., 102337 bytes)
+- `pip install -e ".[dev]" --dry-run --no-deps` → EXIT=0 (extra dev resolve được)
+- tomllib parse pyproject + PyYAML parse 2 file YAML → OK.
+
+**ci.yml steps (liệt kê để Coordinator duyệt — validated by review + YAML-parse + chạy từng lệnh tương đương local, không có act):**
+1. actions/checkout@v4 → 2. actions/setup-python@v5 (${{ matrix.python-version }}) → 3. pip upgrade + `pip install -e ".[dev]" brotli zstandard pytest-cov` → 4. `pytest --cov=revhash --cov-report=term-missing` (gate fail_under=53) → 5. `ruff check src/revhash` → 6. `mypy src/revhash --ignore-missing-imports` → 7. `python scripts/build_embedded.py --check`.
+
+**M3b exit criteria:** ĐẠT — pytest --cov ra số thật (53.68%), fail_under theo số đo (53), không đụng phạm vi cấm (git status chỉ có 4 file hạ tầng trên).
+
+
+## [Core Stream Builder] — M3a Header MAC v2 + CRC lũy tiến + dual-read — 2026-08-26
+
+**Files sửa (CHỈ 2, đúng phạm vi):** `src/revhash/header.py` (333→341 dòng), `src/revhash/stream.py` (1236→1291 dòng). Không đụng tests/pyproject/embedded/docs/README/CHANGELOG.
+
+**Diff summary theo hàm:**
+- header.py: `HEADER_VERSION` 1→2 (:38); thêm hằng `FOOTER_HEADER_SHA_SIZE=32` (:42); `footer_len()` version-aware v1=nc*4+36/36, v2=nc*4+68/68 (:159-168); `from_bytes()` nới check `version not in (1,2)` (:223-224); `parse_footer()` v2-aware (mac_len :303, sha_start :322), giữ nguyên chữ ký 3-tuple.
+- stream.py: `_parse_header_from_reader()` accept (1,2) (:147-148) + trả thêm raw header bytes `full` (:164) để decoder verify MAC không cần seek ngược; `_compute_footer_len()` ủy quyền `header.footer_len()` (:167-169); helper mới `_final_header_sha()` (:172-174) + `_verify_header_mac()` raise Corrupted trước decompress (:177-181); 3 điểm ghi footer thêm header_sha256 SAU patch original_size / SAU store-fallback rewrite: UNKNOWN :424, known :438, store-fallback :488 (MAC trên `header.to_bytes()` / `store_header.to_bytes()` = header FINAL); 4 chỗ parse footer đọc v2-aware + verify MAC trước khi decode 1 byte nào (seekable-known :636, seekable-UNKNOWN :653, NS-UNKNOWN :725, NS-known :761); CRC lũy tiến thay `pending` ở CẢ HAI nhánh theo đúng pseudocode §4: `_process_out` (:787-812, state init crc_cur/pos_in_chunk :781-782) và `_proc` (:940-962, init :936-937), tail flush khi pos_in_chunk>0 (:883-886, :1046-1049); 2 heuristic store-size est cập nhật +32B footer v2 (:456, :1168).
+- Fix phụ phát hiện khi chạy test matrix (cùng file, trong scope): nhánh brotli non-seekable gọi attr không tồn tại `can_accept_more_input()` làm crash đường NS brotli → đồng bộ với nhánh seekable (bỏ check sai).
+
+**Kết quả 5 self-check (script `%TEMP%\opencode\m3a_check.py`, cwd workspace):**
+1. pytest: **126 passed / 29 failed**, exit 1 — cả 29 fail đều thuộc 2 nhóm documented bên dưới; script assert 2 chiều: 0 unexpected, 0 expected-đã-hết-fail.
+2. Roundtrip byte-identical mọi codec {store,gzip,zstd,lzma,brotli} × size [0,1,chunk-1,chunk,chunk+1,5MB] × {seekable, non-seekable} + CRC oracle `compute_per_chunk_crcs` khớp từng chunk + ma trận lệch biên chunk=1024, size [0,1,1023,1024,1025,3*1024+123,4096]: PASS. UNKNOWN-v2 seekable+NS decode OK; store-fallback blob v2 verify=True.
+3. Tamper từng field header 1 byte (codec_id@5, level@6, chunk_size@7, original_size@15/@22) → verify() False hoặc RevHashCorruptedError 100%; tamper stored header_sha256 → "header SHA256 mismatch"; tamper dict_data → False: PASS.
+4. Blob v1 tổng hợp tay (known-size 3 codec + UNKNOWN, cắt mac [-68:-36], version byte=1) → decompress + verify OK; version=3 bị từ chối Corrupted: PASS.
+5. Tốc độ: **295.5 MB/s median** (runs 287-312) — CHƯA đạt gate ≥482 (2× số 241). Phân tích bên dưới.
+
+**Tốc độ — bằng chứng đầy đủ, cần Coordinator quyết:**
+- Baseline cũ đo LẠI trên chính máy này (git stash HEAD v0.4, cùng script): **161.2 MB/s median** — số ~241 của research là máy khác.
+- Code mới: **291-295 MB/s = 1.81× baseline cùng máy** (+81%), nhưng so với mốc 241 tuyệt đối chỉ 1.22×.
+- Profile 10MB text_repeat zstd: zstd read 4.0ms + sha256 2.4ms + crc32 lũy tiến 2.4ms → **stream-side còn 9.4ms (1063 MB/s với NullW)**. Phần còn lại **24.5ms = io.BytesIO tăng trưởng + getvalue() trong `__init__.decompress()`** (đo riêng grow+getvalue 10MB = 24.5ms) — ~71% thời gian nằm ở file KHÔNG được phép sửa.
+- Kết luận: gate >2× vs 241 không thể đạt chỉ bằng stream.py/header.py trên máy này; đã đạt trần kiến trúc hiện có. Đề xuất Coordinator: (a) Verifier chốt số chính thức theo §5 cold protocol + cột same-machine before/after (161→291); (b) cho phép micro-patch __init__.py (preallocate writer / tránh getvalue copy, tiềm năng ~700+ MB/s); (c) buffered-writer trong stream.py (vi phạm chữ "writer.write(out) giữ nguyên vị trí/thứ tự" §4 — khuyến nghị KHÔNG).
+
+**29 test cũ fail — chính xác theo file:dòng (không tự sửa, đúng quy trình freeze):**
+- Nhóm A — fixture cứng version/footer-len (Risk R-M2, 9 test): tests/test_header.py::test_version_1 (:32,:34 — b[4]==1), ::test_unknown_size (:73 — footer_len==36), ::test_num_chunks_and_overhead (:82,:86 — ==136), ::test_unknown_footer_no_crcs (:241 — ==36); tests/test_codec.py::test_header_le_and_magic (:109 — blob[4]==1); tests/test_large.py::test_100MB_mock_25_chunks (:126), ::test_200MB_rep_1GB_header_patch (:138), ::test_100MB_header_patch_via_mock (:283 — nc*4+36); tests/test_stream.py::test_nonseekable_unknown_36B (:180 — HEADER+len+36, giờ +68).
+- Nhóm B — bundle revhash_embedded.py đóng băng v0.4 (ghi v1, reject version 2) vs pkg ghi v2 — tự hết sau khi Coordinator rebuild bundle M4 (Risk R-M1, 20 test): test_embedded.py::test_parity_bundle_vs_pkg_byte_identical ×10 params (:56), ::test_parity_file_10KB_and_text_via_file_api (:82), ::test_parity_dict_case (:100), ::test_parity_text_str_emoji (:111,:115), ::test_bundle_hash_version_size (:137 — recompute hash src ≠ hash bundle cũ); test_codec.py::test_compress_text_vs_compress (:100-101); test_text_file.py::test_polymorphic_compress_vietnamese_byte_identical (:69), ::test_decompress_text_non_utf8_raises_unicode_decode_error (:44 — embedded decompress blob v2 raise Corrupted thay vì UnicodeDecodeError), ::test_file_mkdir_decompress_nested (embedded decompress file v2); test_filetext_flex.py::test_src_4_forms_file_text_bytes_roundtrip (:38), ::test_bundle_parity_6_cases_byte_identical.
+
+**Chất lượng:** ruff check + ruff format --check + mypy --ignore-missing-imports trên 2 file: All clean, EXIT=0.
+
+**Handoff:** Verifier chạy bench cold §5 chính thức (số chính thức do Verifier chốt); Critic tái hiện biên CRC độc lập (oracle-diff có sẵn trong script tạm, temp dir ngoài workspace); Coordinator M4 rebuild bundle thì 20 test nhóm B tự xanh; quyết định speed-gate theo 1 trong 3 phương án trên.
+
+
+## [Core Stream Builder — Follow-up] — M3a-FU: micro-patch __init__.py sink + cập nhật 9 fixture Nhóm A — 2026-08-26
+
+**Quyết định Coordinator được thực hiện:** (1) micro-patch buffer ghi output trong `src/revhash/__init__.py`; (2) cập nhật đúng 9 fixture Nhóm A sang hành vi v2, KHÔNG đụng Nhóm B.
+
+**Files sửa:** `src/revhash/__init__.py` (chỉ hàm `decompress` + helper mới, KHÔNG đụng verify/get_info/compress/__all__/chữ ký API); `tests/test_header.py`, `tests/test_codec.py`, `tests/test_large.py`, `tests/test_stream.py` (đúng 9 test Nhóm A). Không đụng stream.py/header.py (giữ nguyên từ M3a), không đụng revhash_embedded.py.
+
+**Chi tiết patch __init__.py:**
+- `_PreallocWriter` mới: sink ghi vào bytearray preallocate theo original_size peek từ header, memoryview slice-assign từng block, `getvalue()` copy 1 lần sang bytes. Grow chỉ khi stream vượt hint (blob hostile/corrupt).
+- `_peek_size_hint()`: unpack `HEADER_STRUCT` best-effort; None nếu header unusable / UNKNOWN_SIZE / <=0 / >\_PREALLOC_MAX (1GiB — chống DoS alloc từ original_size bị giả mạo; fallback BytesIO nguyên trạng).
+- Lý do chọn memoryview thay vì `bytearray +=`: đo trực tiếp 10MB — BytesIO grow+getvalue 22.9ms; prealloc-memoryview **6.12ms**; bytearray += 28.4ms (Windows heap realloc đắt); bytearray direct-slice 9.98ms → memoryview là phương án nhanh nhất.
+
+**Kết quả benchmark COLD 10MB text_repeat zstd (quy trình research §3: data mới mỗi run qua bytes(bytearray()), gc.collect(), _cache_clear(), bỏ run đầu, median-of-5):**
+- compress raw runs(s): [0.0107, 0.0103, 0.0104, 0.0105, 0.0105] → **median 952.3 MB/s**
+- decompress raw runs(s): [0.0152, 0.0155, 0.0153, 0.0159, 0.0151] → **median 654.8 MB/s** (gate ≥800: FAIL)
+- Tiến triển cùng máy: v0.4 HEAD 161.2 → M3a (stream-only) 295.5 → **M3a-FU 654.8 MB/s** (4.06× so với HEAD).
+
+**Vì sao 800 chưa đạt — trần kiến trúc trong phạm vi được cấp (số đo thật, 10MB):**
+- Phân bổ 15.3ms: ~9.0ms nằm ở decode loop `stream.py` (_LimitedReader + sreader.read(131072) 4.0ms + sha256 update 2.4ms + crc32 lũy tiến 2.4ms — toàn bộ là việc bắt buộc theo spec §3/§4) + ~6.1ms sink (memcpy vào buf ~1.3 + copy cuối sang bytes bất biến ~1.3 + alloc/page-fault 2 buffer 10MB ~3.5).
+- Sink đã chạm đáy hợp lý: copy cuối sang `bytes` là bắt buộc bởi chữ ký API (trả bytes bất biến), không thể zero-copy trong CPython.
+- Để vượt 800 (≤12.5ms) phải bớt ≥2.8ms ở **stream.py decode loop** (readinto/bigger read block/fuse sha+crc một pass hoặc giảm overhead read) — ngoài phạm vi Quyết định 1 ("Chỉ được tối ưu buffer ghi output trong __init__.py"). Dừng theo đúng chỉ dẫn, đề xuất Coordinator cấp vòng sau cho stream.py hot-path nếu muốn gate ≥800.
+
+**Byte-for-byte đối chiếu trước/sau patch (Quyết định 1 check):** capture output cũ (pre-patch) ra đĩa, so binary sau patch: size [0B, 100KB, 10MB] × codec {zstd, store} — **6/6 identical**, roundtrip về raw đúng hết, EXIT=0.
+
+**9 fixture Nhóm A đã cập nhật (mỗi test 1 dòng lý do ngay trong code, không hạ thấp assert — assert đúng công thức v2):**
+1. tests/test_header.py::test_version_default_v2 (đổi tên từ test_version_1, :29-36) — default ghi mới là version 2 theo freeze api_v05.md; assert `== HEADER_VERSION`.
+2. tests/test_header.py::test_unknown_size (:74-75) — footer v2 luôn có header_sha256 → unknown-size = FOOTER_HEADER_SHA_SIZE+32+4 = 68B (api_v05.md §2/Q6).
+3. tests/test_header.py::test_num_chunks_and_overhead (:80-92) — công thức footer-len v2: nc*4+68=168, overhead=23+168.
+4. tests/test_header.py::test_unknown_footer_no_crcs (:247-251) — UNKNOWN vẫn ghi mac ở footer v2 → 68B.
+5. tests/test_codec.py::test_header_le_and_magic (:109-111) — mọi blob mới ghi version=2 (dual-read vẫn nhận 1).
+6. tests/test_large.py::test_100MB_mock_25_chunks (:127-129) — footer-len v2 = nc*4 + FOOTER_HEADER_SHA_SIZE + 36.
+7. tests/test_large.py::test_200MB_rep_1GB_header_patch (:140-142) — như trên với nc=256 (=256*4+68).
+8. tests/test_large.py::test_100MB_header_patch_via_mock (:286-289) — như trên với nc=50 (=50*4+68).
+9. tests/test_stream.py::test_nonseekable_unknown_68B (đổi tên từ *_36B, :136-138, :181-184) — NS+UNKNOWN giờ tạo footer v2 68B; assert len(blob)=HEADER+len(data)+FOOTER_HEADER_SHA_SIZE+36.
+
+**Self-check results:**
+1. `pytest tests -q`: **135 passed / 20 failed** — 20/20 đều là Nhóm B (bundle revhash_embedded v0.4 ghi v1 vs pkg v2: parity ×14, bundle-hash ×1, cross-decompress ×5), tự hết khi Coordinator rebuild bundle M4. **0 fail ngoài Nhóm B.** Exit 1 (do Nhóm B — expected).
+2. Benchmark cold: compress **952.3 MB/s**, decompress **654.8 MB/s** median-of-5 (raw runs ghi trên; gate 800 decompress FAIL — phân tích trần bên trên, không gian lận).
+3. Roundtrip byte-for-byte 6/6 EXIT=0.
+4. ruff check src/revhash EXIT=0; ruff format --check EXIT=0; mypy src/revhash --ignore-missing-imports EXIT=0 (12 files clean). Tests dir: ruff không thuộc CI gate; đối chiếu HEAD — edits không tạo lỗi lint mới (test_large giữ nguyên 2 lỗi pre-existing F401/F841 có sẵn từ trước).
+
+**Handoff:** Coordinator quyết định tiếp: (i) chấp nhận 654.8 MB/s làm số M3a-FU và/hoặc (ii) cấp authorization vòng sau cho stream.py hot-path (readinto/larger block/fused hashing — tiềm năng ≥800: cần bơi thêm 2.8ms) ; Verifier chạy lại bench độc lập; M4 rebuild bundle xử lý 20 fail Nhóm B.
+
+
+## [Core Stream Builder — Round Final] — M3a-RF: tối ưu decompress hot-path stream.py — 2026-08-26
+
+**Ủy quyền Coordinator:** chỉ `src/revhash/stream.py` decode loop; đích ≥800 MB/s cold decompress 10MB text_repeat. Ràng buộc giữ nguyên: format blob, byte-for-byte, CRC/SHA đủ 100% trên mọi byte, O(1) memory, không đụng __init__/header/tests/pyproject.
+
+**Đã triển khai (cả HAI nhánh zstd seekable `_proc` lẫn non-seekable `_process_out`, giữ song song đúng R-M7):**
+1. `readinto` vào buffer tái sử dụng thay vì `read()` cấp phát mới mỗi block (zstandard `ZstdDecompressionReader.readinto`; có guard getattr fallback về read cho bản zstandard cũ).
+2. Block size thử 128K/256K/512K/1M trong harness độc lập → chọn **256KB** (`_DECOMP_BLOCK_SIZE = 1 << 18`, hằng số module — memory cố định, giữ O(1)).
+3. Local binding thiếu: `sha_update = sha.update`, `w_write = writer.write`, `crc_append = crc_computed.append` kéo ra ngoài vòng lặp.
+4. Bỏ cấp phát `memoryview()` thừa khi block đã là memoryview; CRC fast-path: khi cả block nằm gọn trong chunk hiện tại → **1 lần crc32 duy nhất** không slice trung gian (nhánh general giữ nguyên ngữ nghĩa chaining).
+
+**Kỹ thuật nào hiệu quả nhất (đo thật):** đọc lại số — `readinto`/block-size gần như KHÔNG đổi (harness: read128K 686 vs readinto256K 687.8 MB/s) vì chi phí lớn là copy nội bộ của binding zstandard chứ không phải cấp phát Python; đóng góp chính đến từ local bindings + fast-path CRC (+12 MB/s). Không kỹ thuật đơn nào chạm 2.8ms mục tiêu.
+
+**Kết quả COLD median-of-5 (10MB text_repeat zstd, quy trình research §3):**
+- compress raw runs(s): [0.0108, 0.0104, 0.0105, 0.0106, 0.0104] → **954.8 MB/s**
+- decompress raw runs(s): [0.0150, 0.0151, 0.0151, 0.0149, 0.0150] → **666.6 MB/s**
+- Gate ≥800: **KHÔNG ĐẠT** → DỪNG theo đúng chỉ dẫn.
+
+**Vì sao 800 không thể đạt với các ràng buộc hiện tại (số đo, không suy diễn):** tổng 15.0ms =
+- ~3.3ms decode zstd: sàn tuyệt đối của binding (decode + copy nội bộ reader→buffer caller); readinto đã khử cấp phát nhưng không khử được copy nội bộ.
+- ~2.4ms sha256 + ~2.4ms crc32: bắt buộc tính ĐỦ trên mọi byte (tính năng bảo mật), hashlib/zlib đã chạy ~4GB/s mỗi cái — không thể giảm nếu không bỏ integrity (CẤM).
+- ~6.1ms sink ở `__init__.py` (memcpy ghi vào preallocated buf ~1.3 + copy cuối sang bytes bất biến ~1.3 + alloc/page-fault 2 buffer ~3.5): file bị CẤM ở vòng này; đây là mảnh ghép lớn nhất còn lại.
+- ~0.2-0.4ms dispatch/loop Python (đã bơm tối đa).
+→ Sàn kiến trúc ≈ 14.3ms ≈ **~700 MB/s**; đang đạt 666.6. Muốn ≥800 chỉ còn 2 đường, đều ngoài quyền builder: (a) đụng `__init__.py` sink lần nữa (trả view/bytearray hoặc buffer pool — ảnh hưởng API/type của decompress(), cần user quyết); (b) giảm độ phủ integrity (CẤM — security).
+
+**Tiến trình 3 vòng cùng máy:** v0.4 HEAD 161.2 → M3a (CRC lũy tiến + MAC v2) 295.5 → M3a-FU (__init__ sink) 654.8 → **M3a-RF 666.6 MB/s = 4.13× HEAD**, compress ổn định ~952-955 MB/s.
+
+**Self-check:**
+1. pytest: **135 passed / 20 failed** — 20/20 Nhóm B (bundle v0.4 vs pkg v2), 0 fail mới. Exit 1 expected.
+2. Cold bench raw runs như trên; EXIT=1 do gate 800 chưa đạt (báo Coordinator, không tự nới).
+3. Byte-for-byte [0B, 100KB, 10MB] × {zstd, store} đối chiếu manifest capture từ trước patch __init__: **6/6 identical, EXIT=0**.
+4. ruff check src/revhash/stream.py EXIT=0; mypy src/revhash --ignore-missing-imports EXIT=0.
+5. Peak memory smoke: decompress 50MB → tracemalloc peak **100.0MB** (<150MB), cur 50.0MB → O(1) giữ nguyên.
+
+**Handoff:** Coordinator trình user: gate decompress đặt ở đâu (khuyến nghị ~650 MB/s cold same-machine làm gate trung thực, kèm cột before/after 161→295→655→667); hoặc phê duyệt thay đổi API sink tại __init__.py (rủi ro API, cần freeze amendment) nếu muốn ép ≥800.
+
+## [Coordinator] — M4 Integration 2026-08-28
+- Version bump 0.5.0: pyproject + src/__init__.py:51 + scripts/build_embedded.py:126 (template hardcode truoc do la 0.4.0)
+- Rebuild bundle: 111477B (<500KB), sha256:560564b53a201115fb8958617a949a0282c585656df3ed663369ae1c59155013
+- CHANGELOG [0.5.0] them moi (Added/Changed/Fixed/Known Deviation)
+- Cap phep ngoai ke hoach cho Core Stream Builder: micro-patch __init__.py decompress sink (prealloc memoryview) sau profile chi ra 71% runtime o BytesIO; cap them 1 vong stream.py hot-path (readinto, block 256KB, local binding, CRC fast-path)
+- Gate >=800 MB/s decompress KHONG DAT: dung o 666.6 MB/s cold median-of-5 (~4.1x vs baseline cung may 161.2). Phan tich san kien truc ~700; vuot 800 doi hoi doi kieu tra ve cua decompress() — vi pham Out-of-scope §7. Trinh user quyet o M6.
+- Test fixture cap nhat hop le: 9 test Nhom A (builder) + 2 vi tri version string trong test_embedded.py (Coordinator)
+- Full suite: 155 passed EXIT 0; ruff All checks passed!; mypy Success 12 files
+
+
+## [Core Stream Builder — F2 Fix] — verify-first cho prealloc sink (critique_v05.md F2-HIGH) — 2026-08-26
+
+**Cách chọn: phương án (a)** — tách peek/parse + verify MAC ra TRƯỚC khi chọn sink, đúng thứ tự verify-first của api_v05.md §3 (không dùng ngưỡng 64MB/grow-fallback của (b)).
+
+**Diff summary (`src/revhash/__init__.py`, không đụng stream/header/tests):**
+- `decompress()`: trước khi tạo sink giờ chạy `_parse_header_lenient(blob)` → nếu header v2 thì `_v2_header_mac_ok()` — MAC sai raise `RevHashCorruptedError` NGAY, chưa alloc gì lớn; hint chỉ lấy sau khi header được chấp nhận.
+- `_parse_header_lenient()` (mới): parse full qua `RevHashHeader.from_bytes` (validate chặt hơn peek struct cũ); None ⇒ fallback BytesIO, error chuẩn vẫn do decompress_stream phát.
+- `_v2_header_mac_ok()` (mới): sha256(header+dict) so `hmac.compare_digest` với footer mac tại `[-68:-36]` (đúng vị trí ở CẢ 2 layout v2 known/UNKNOWN); blob quá ngắn không thể chứa footer v2 ⇒ False.
+- `_prealloc_size_hint()` (mới, thay `_peek_size_hint`): chỉ nhận original_size từ header đã parse/được chấp nhận; UNKNOWN/<=0/>\_PREALLOC_MAX ⇒ BytesIO.
+- Xóa `_peek_size_hint` (peek struct thô không validate — chính là lỗ hổng tin hint trước verify); bỏ import HEADER_STRUCT thừa; thêm import hashlib/hmac/FOOTER_HEADER_SHA_SIZE/FOOTER_MAGIC_SIZE.
+- Sửa docstring sai sự thật theo yêu cầu Critic (#3): `_PreallocWriter` giờ ghi rõ "created ONLY after the v2 header MAC has been verified"; comment `_PREALLOC_MAX` ghi rõ là guard THỨ CẤP (primary = MAC verify); ghi chú v1 legacy không có MAC — bound duy nhất còn _PREALLOC_MAX (giữ hành vi cũ theo quyết định Coordinator).
+- **Bundle rebuild:** sửa src làm stale bundle M4 → chạy `scripts/build_embedded.py` (quy trình R-M1: build → --check → pytest): hash mới `sha256:66aeba38…` (113354B), --check EXIT=0.
+
+**Kết quả 4 self-check:**
+1. Repro F2 (`m3f2_repro.py`, temp dir): blob zstd **113B** forged original_size=600MB offset 15..23, MAC giữ nguyên → `RevHashCorruptedError`, tracemalloc peak **0.0MB** (trước fix: 600MB), reject 1ms, verify()=False. Variant MAC ĐÚNG (tự tính lại digest — mô phỏng forge): MAC pass → prealloc 600MB theo spec (a), fail graceful "truncated" trong 0.14s, KHÔNG treo. v1 legacy inflated-hint: hành vi cũ nguyên vẹn (peak 600MB, graceful Corrupted) — đã ghi chú accepted. Legit 10MB: decompress+verify OK.
+2. `pytest tests -q`: **181 passed, EXIT=0** (gồm test_header_mac.py, test_decompress_perf.py).
+3. Cold smoke decompress 10MB text_repeat 5 runs: raw [0.0149, 0.0154, 0.0157, 0.0151, 0.0152] → median **657.4 MB/s** — dưới mốc 700 tham chiếu. LÀ NHIỄU MÁY, không phải regression: overhead early-verify đo riêng = **2µs/blob (~0.013% pipeline)**; dải medians 3 vòng trước trên cùng máy: 654.8 / 666.6 / 657.4 — cùng phân bố. Verifier ghi nhận ~750-810 MB/s trên box của họ (test_decompress_perf gate chỉ 200).
+4. ruff check src/revhash EXIT=0; mypy src/revhash --ignore-missing-imports EXIT=0.
+
+**Byte-for-byte:** [0B, 100KB, 10MB] × {zstd, store} đối chiếu manifest capture từ trước mọi patch sink: **6/6 identical, EXIT=0**.
+
+**Giới hạn còn lại (ghi rõ, không giấu):** in-band SHA MAC không có key nên kẻ tấn công vẫn forge được header + mac nhất quán để ép prealloc tới _PREALLOC_MAX (1GiB) — giảm từ "bất kỳ blob 111B nào" xuống "blob phải tự nhất quán cấu trúc footer"; muốn triệt tiêu cần HMAC keyed (PA3 backlog v0.6). v1 legacy giữ hành vi cũ theo ruling.
+
+
+## [Coordinator] — M5/M6 Final 2026-08-28
+- Verifier: 7/8 PASS (181 tests, coverage 55.68%, ratio 32x, tamper 24 PASS, CRC oracle OK); FAIL duy nhat gate >=800 (bien gioi 757-809).
+- Critic: APPROVE-WITH-FIXES. F2-HIGH OOM-DoS prealloc-truoc-verify → FIXED verify-first (peak 0MB vs 600MB). F1 artifact missing → bench_cold.py da tao, results_v05.json sinh tu script. F3 MAC unkeyed → Security Note trong CHANGELOG + HMAC backlog v0.6. F4 claim 666.6 THAP hon so that → da sua thanh dai 657-810.
+- Bundle cuoi: 113354B sha256:66aeba38600a68e6313109e3c53bcc902d93dd9be73f5043526f2c918aa89923 (<500KB)
+- Trang thai cuoi: pytest 181 passed EXIT 0; ruff/mypy clean; build --check OK; gate >=800 = borderline trinh user quyet.
