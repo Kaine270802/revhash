@@ -146,6 +146,35 @@ print("flex PASS", len(blob))
 
 > **Heuristic:** `str` path tồn tại + `is_file()` → file (S2), ngược lại → text (S3) + `encode("utf-8","strict")`; `bytes` → raw (S4); `Path` explicit → file (S1). `dst=None` → RAM, `dst=Path` → file + `mkdir(parents=True)`. Guard `>100MB dst=None → ValueError` (tránh OOM) — xem `src/revhash/file_text.py:104` + `docs/api_filetext.md:170` 6 ví dụ.
 
+### Đa dạng file — `compress_file` hỗ trợ mọi loại file (NEW v0.3)
+
+`compress_file` đọc `open(src,"rb")` O(1) nên **mọi file đều nén được**: `.txt`, `.json`, `.csv`, `.bin`, `.log`, file lớn 10MB+...
+
+```python
+import revhash, json, csv
+from pathlib import Path
+
+# .json file
+Path("data.json").write_text(json.dumps({"xin": "chào"}), encoding="utf-8")
+revhash.compress_file("data.json", "data.json.rvh")
+revhash.decompress_file("data.json.rvh", "restored.json")
+
+# .csv file
+with open("table.csv","w",newline="",encoding="utf-8") as f:
+    csv.writer(f).writerows([[1,"tên_1"],[2,"tên_2"]])
+revhash.compress_file("table.csv", "table.csv.rvh")
+
+# .bin binary
+Path("binary.bin").write_bytes(b"\x00\xff\xfe" * 10000)
+revhash.compress_file("binary.bin", "binary.bin.rvh")
+
+# JSON text trực tiếp (không cần file)
+blob = revhash.compress_file('{"hello": "world"}', None)
+assert revhash.decompress_file(blob, None, as_text=True) == '{"hello": "world"}'
+```
+
+> **File ví dụ đầy đủ:** `examples/diverse_file_demo.py` — 8 demos chi tiết (`.txt`/`.json` file + text trực tiếp/`.csv`/`.bin`/`.log`/`force_text`/file lớn 10MB O1 + bundle parity + dict) — chạy `python examples/diverse_file_demo.py` → 8/8 PASS O1.
+
 ### Dictionary cho small file / chunk đầu
 
 ```python
