@@ -144,7 +144,7 @@ def demo5_codecs_fallback_and_bundle():
         revhash_embedded.decompress_file(dst_bundle, out_bundle)
         assert out_pkg.read_bytes() == out_bundle.read_bytes() == src.read_bytes()
         # bundle version align
-        assert revhash_embedded.__version__ == revhash.__version__ == "0.3.0"
+        assert revhash_embedded.__version__ == revhash.__version__ == "0.4.0"
     # bench micro: ensure chunk_size 4M still fast (no perf test heavy, just assert API)
     blob_4m = revhash.compress(b"a" * 1024 * 1024, chunk_size=4 * 1024 * 1024)
     assert revhash.decompress(blob_4m) == b"a" * 1024 * 1024

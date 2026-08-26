@@ -4,9 +4,9 @@
 
 *`revhash` means “reversible hash” — lossless compression with header/checksum, not cryptographic SHA/md5.*
 
-> **Version:** `0.3.0` — `import revhash` — embed in one line `cp revhash_embedded.py ./myproject/` → `import revhash_embedded as revhash` (single-file bundle 101KB `<500KB`, `__bundle_hash__` synced).
+> **Version:** `0.4.0` — `import revhash` — embed in one line `cp revhash_embedded.py ./myproject/` → `import revhash_embedded as revhash` (single-file bundle 101KB `<500KB`, `__bundle_hash__` synced).
 
-![version](https://img.shields.io/badge/version-0.3.0-blue) ![tests](https://img.shields.io/badge/tests-155%20PASS-brightgreen) ![bundle](https://img.shields.io/badge/bundle-101KB-blue) ![python](https://img.shields.io/badge/python-%3E%3D3.9-blue) ![github](https://img.shields.io/badge/github-Kaine270802%2Frevhash-black?logo=github)
+![version](https://img.shields.io/badge/version-0.4.0-blue) ![tests](https://img.shields.io/badge/tests-155%20PASS-brightgreen) ![bundle](https://img.shields.io/badge/bundle-101KB-blue) ![python](https://img.shields.io/badge/python-%3E%3D3.9-blue) ![github](https://img.shields.io/badge/github-Kaine270802%2Frevhash-black?logo=github)
 
 ---
 
@@ -16,7 +16,7 @@
 |--------|---------------------------|--------|--------|
 | **Ratio 10 MB text_repeat** | **0.000151** (1.58 KB) | 0.00491 (51 KB) | **32.5× better** (96.9% saved) |
 | **Ratio 100 MB text_repeat** | **0.00010** (10 KB) | 0.00485 (509 KB) | 48× |
-| **Speed 10 MB encode** | **836–6478 MB/s** | 337 MB/s | 2–20× faster |
+| **Speed 10 MB encode** | **977–6478 MB/s** | 337 MB/s | 2–20× faster |
 | **Chunk overhead** | **0%** streaming single-frame (20 MB 2059 B vs 2060 B whole) | +12% independent | Ratio preserved |
 | **Memory 50 MB stream** | **51 MB peak** (O1) | 100 MB whole | Constant memory |
 | **Dict small file 10 KB** | **30 B vs 150 B (80% saved)** | — | Embedded dict 327 B demo |
@@ -41,7 +41,7 @@ pip install brotli zstandard
 
 # 3) Verify installation
 python -c "import revhash; print(revhash.__version__); print(revhash.get_available_codecs())"
-# → 0.3.0  {'store': True, 'gzip': True, 'zstd': True, 'lzma': True, 'brotli': True}
+# → 0.4.0  {'store': True, 'gzip': True, 'zstd': True, 'lzma': True, 'brotli': True}
 ```
 
 **Other ways (for contributors who want to edit code):**
@@ -273,7 +273,7 @@ See `benchmarks/baseline_report.md` (304 lines) and `reports/verification.md` §
 
 ## ✅ Verification (155/155 PASS)
 
-Run `pytest tests -q` (7s, Python 3.12.10, `__version__ 0.3.0`):
+Run `pytest tests -q` (7s, Python 3.12.10, `__version__ 0.4.0`):
 
 - **Multi-size:** 0B,1B,100B,1KB,10KB,1MB,10MB,50MB streaming, 200MB mock 1GB, 20MB file — all SHA256 byte-identical.
 - **O1 memory:** 10MB peak 20MB, 50MB peak 51MB — all `<150MB`.
@@ -286,7 +286,7 @@ See `reports/verification.md` + `reports/verification_filetext.md` (155/155).
 
 ---
 
-## 🔍 Audit & Limitations (v0.3.0)
+## 🔍 Audit & Limitations (v0.4.0)
 
 **Critic found 7 risks, 5 fixed:**
 

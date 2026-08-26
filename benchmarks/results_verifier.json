@@ -1,8 +1,8 @@
 {
   "meta": {
-    "generated": "2026-08-26T04:43:39Z",
+    "generated": "2026-08-26T07:17:00Z",
     "python": "3.12.10",
-    "revhash_version": "0.3.0-awesome",
+    "revhash_version": "0.4.0",
     "has_psutil": true,
     "baseline_path": "D:\\data optimization\\benchmarks\\results.json"
   },
@@ -16,15 +16,15 @@
         "comp_bytes": 10303,
         "ratio": 1.006152,
         "saved_pct": -0.62,
-        "comp_time_s": 0.000185,
-        "decomp_time_s": 0.000108,
-        "comp_MBps": 52.66,
-        "decomp_MBps": 90.65,
+        "comp_time_s": 0.000121,
+        "decomp_time_s": 0.000117,
+        "comp_MBps": 80.47,
+        "decomp_MBps": 83.11,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
         "peak_mem_MB_tracemalloc": 0.05,
-        "rss_MB": 24.4
+        "rss_MB": 24.54
       },
       {
         "codec": "gzip",
@@ -34,15 +34,15 @@
         "comp_bytes": 681,
         "ratio": 0.066504,
         "saved_pct": 93.35,
-        "comp_time_s": 0.000206,
-        "decomp_time_s": 0.000172,
-        "comp_MBps": 47.31,
-        "decomp_MBps": 56.64,
+        "comp_time_s": 0.000205,
+        "decomp_time_s": 0.000144,
+        "comp_MBps": 47.59,
+        "decomp_MBps": 67.68,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
         "peak_mem_MB_tracemalloc": 0.29,
-        "rss_MB": 24.61
+        "rss_MB": 24.73
       },
       {
         "codec": "zstd",
@@ -52,15 +52,15 @@
         "comp_bytes": 620,
         "ratio": 0.060547,
         "saved_pct": 93.95,
-        "comp_time_s": 0.000409,
+        "comp_time_s": 0.000401,
         "decomp_time_s": 0.000225,
-        "comp_MBps": 23.9,
-        "decomp_MBps": 43.33,
+        "comp_MBps": 24.38,
+        "decomp_MBps": 43.46,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
-        "peak_mem_MB_tracemalloc": 0.13,
-        "rss_MB": 24.83
+        "peak_mem_MB_tracemalloc": 0.18,
+        "rss_MB": 24.92
       },
       {
         "codec": "lzma",
@@ -70,15 +70,15 @@
         "comp_bytes": 707,
         "ratio": 0.069043,
         "saved_pct": 93.1,
-        "comp_time_s": 0.008767,
-        "decomp_time_s": 0.000192,
-        "comp_MBps": 1.11,
-        "decomp_MBps": 50.74,
+        "comp_time_s": 0.004533,
+        "decomp_time_s": 0.000238,
+        "comp_MBps": 2.15,
+        "decomp_MBps": 41.09,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
         "peak_mem_MB_tracemalloc": 93.11,
-        "rss_MB": 24.94
+        "rss_MB": 24.82
       },
       {
         "codec": "brotli",
@@ -88,15 +88,15 @@
         "comp_bytes": 565,
         "ratio": 0.055176,
         "saved_pct": 94.48,
-        "comp_time_s": 0.001364,
-        "decomp_time_s": 0.000141,
-        "comp_MBps": 7.16,
-        "decomp_MBps": 69.16,
+        "comp_time_s": 0.000757,
+        "decomp_time_s": 0.000133,
+        "comp_MBps": 12.9,
+        "decomp_MBps": 73.66,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
         "peak_mem_MB_tracemalloc": 0.05,
-        "rss_MB": 25.09
+        "rss_MB": 25.11
       }
     ],
     "1MB__text_repeat": [
@@ -108,15 +108,15 @@
         "comp_bytes": 1048639,
         "ratio": 1.00006,
         "saved_pct": -0.01,
-        "comp_time_s": 0.001192,
-        "decomp_time_s": 0.002035,
-        "comp_MBps": 838.72,
-        "decomp_MBps": 491.28,
+        "comp_time_s": 0.001208,
+        "decomp_time_s": 0.002082,
+        "comp_MBps": 827.54,
+        "decomp_MBps": 480.35,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
         "peak_mem_MB_tracemalloc": 7.0,
-        "rss_MB": 28.1
+        "rss_MB": 28.12
       },
       {
         "codec": "gzip",
@@ -126,15 +126,15 @@
         "comp_bytes": 5759,
         "ratio": 0.005492,
         "saved_pct": 99.45,
-        "comp_time_s": 0.006373,
-        "decomp_time_s": 0.002906,
-        "comp_MBps": 156.91,
-        "decomp_MBps": 344.07,
+        "comp_time_s": 0.003771,
+        "decomp_time_s": 0.00286,
+        "comp_MBps": 265.16,
+        "decomp_MBps": 349.67,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
-        "peak_mem_MB_tracemalloc": 6.05,
-        "rss_MB": 27.07
+        "peak_mem_MB_tracemalloc": 6.06,
+        "rss_MB": 27.49
       },
       {
         "codec": "zstd",
@@ -144,15 +144,15 @@
         "comp_bytes": 708,
         "ratio": 0.000675,
         "saved_pct": 99.93,
-        "comp_time_s": 0.001572,
-        "decomp_time_s": 0.004651,
-        "comp_MBps": 636.15,
-        "decomp_MBps": 215.03,
+        "comp_time_s": 0.001277,
+        "decomp_time_s": 0.003614,
+        "comp_MBps": 782.88,
+        "decomp_MBps": 276.71,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
-        "peak_mem_MB_tracemalloc": 5.18,
-        "rss_MB": 27.21
+        "peak_mem_MB_tracemalloc": 6.13,
+        "rss_MB": 27.32
       },
       {
         "codec": "lzma",
@@ -162,15 +162,15 @@
         "comp_bytes": 879,
         "ratio": 0.000838,
         "saved_pct": 99.92,
-        "comp_time_s": 0.030325,
-        "decomp_time_s": 0.003603,
-        "comp_MBps": 32.98,
-        "decomp_MBps": 277.58,
+        "comp_time_s": 0.015759,
+        "decomp_time_s": 0.003428,
+        "comp_MBps": 63.46,
+        "decomp_MBps": 291.68,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
         "peak_mem_MB_tracemalloc": 93.11,
-        "rss_MB": 27.44
+        "rss_MB": 27.61
       },
       {
         "codec": "brotli",
@@ -180,15 +180,15 @@
         "comp_bytes": 600,
         "ratio": 0.000572,
         "saved_pct": 99.94,
-        "comp_time_s": 0.004446,
-        "decomp_time_s": 0.003193,
-        "comp_MBps": 224.93,
-        "decomp_MBps": 313.22,
+        "comp_time_s": 0.002279,
+        "decomp_time_s": 0.003224,
+        "comp_MBps": 438.74,
+        "decomp_MBps": 310.21,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
         "peak_mem_MB_tracemalloc": 6.0,
-        "rss_MB": 27.11
+        "rss_MB": 27.12
       }
     ],
     "1MB__text_realistic": [
@@ -200,15 +200,15 @@
         "comp_bytes": 100096,
         "ratio": 0.095459,
         "saved_pct": 90.45,
-        "comp_time_s": 0.003838,
-        "decomp_time_s": 0.004318,
-        "comp_MBps": 260.56,
-        "decomp_MBps": 231.57,
+        "comp_time_s": 0.002152,
+        "decomp_time_s": 0.004887,
+        "comp_MBps": 464.68,
+        "decomp_MBps": 204.61,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
-        "peak_mem_MB_tracemalloc": 5.27,
-        "rss_MB": 28.52
+        "peak_mem_MB_tracemalloc": 6.23,
+        "rss_MB": 28.57
       },
       {
         "codec": "gzip",
@@ -218,15 +218,15 @@
         "comp_bytes": 90277,
         "ratio": 0.086095,
         "saved_pct": 91.39,
-        "comp_time_s": 0.031556,
-        "decomp_time_s": 0.003965,
-        "comp_MBps": 31.69,
-        "decomp_MBps": 252.21,
+        "comp_time_s": 0.017007,
+        "decomp_time_s": 0.003817,
+        "comp_MBps": 58.8,
+        "decomp_MBps": 261.98,
         "ok": true,
         "sha_match": true,
         "chunks": 1,
-        "peak_mem_MB_tracemalloc": 5.43,
-        "rss_MB": 28.57
+        "peak_mem_MB_tracemalloc": 5.52,
+        "rss_MB": 28.68
       }
     ],
     "10MB__text_repeat": [
@@ -238,15 +238,15 @@
         "comp_bytes": 10485831,
         "ratio": 1.000007,
         "saved_pct": -0.0,
-        "comp_time_s": 0.018945,
-        "decomp_time_s": 0.024561,
-        "comp_MBps": 527.85,
-        "decomp_MBps": 407.15,
+        "comp_time_s": 0.019587,
+        "decomp_time_s": 0.024485,
+        "comp_MBps": 510.55,
+        "decomp_MBps": 408.4,
         "ok": true,
         "sha_match": true,
         "chunks": 3,
         "peak_mem_MB_tracemalloc": 34.0,
-        "rss_MB": 56.13
+        "rss_MB": 56.25
       },
       {
         "codec": "gzip",
@@ -256,15 +256,15 @@
         "comp_bytes": 51516,
         "ratio": 0.004913,
         "saved_pct": 99.51,
-        "comp_time_s": 0.068972,
-        "decomp_time_s": 0.029288,
-        "comp_MBps": 144.99,
-        "decomp_MBps": 341.44,
+        "comp_time_s": 0.038614,
+        "decomp_time_s": 0.030112,
+        "comp_MBps": 258.97,
+        "decomp_MBps": 332.1,
         "ok": true,
         "sha_match": true,
         "chunks": 3,
-        "peak_mem_MB_tracemalloc": 42.14,
-        "rss_MB": 46.22
+        "peak_mem_MB_tracemalloc": 42.19,
+        "rss_MB": 46.31
       },
       {
         "codec": "zstd",
@@ -274,15 +274,15 @@
         "comp_bytes": 1580,
         "ratio": 0.000151,
         "saved_pct": 99.98,
-        "comp_time_s": 0.012261,
-        "decomp_time_s": 0.067874,
-        "comp_MBps": 815.6,
-        "decomp_MBps": 147.33,
+        "comp_time_s": 0.010141,
+        "decomp_time_s": 0.060447,
+        "comp_MBps": 986.1,
+        "decomp_MBps": 165.43,
         "ok": true,
         "sha_match": true,
         "chunks": 3,
-        "peak_mem_MB_tracemalloc": 20.58,
-        "rss_MB": 46.29
+        "peak_mem_MB_tracemalloc": 30.41,
+        "rss_MB": 46.47
       },
       {
         "codec": "lzma",
@@ -292,15 +292,15 @@
         "comp_bytes": 2267,
         "ratio": 0.000216,
         "saved_pct": 99.98,
-        "comp_time_s": 0.225057,
-        "decomp_time_s": 0.033587,
-        "comp_MBps": 44.43,
-        "decomp_MBps": 297.74,
+        "comp_time_s": 0.112118,
+        "decomp_time_s": 0.034113,
+        "comp_MBps": 89.19,
+        "decomp_MBps": 293.15,
         "ok": true,
         "sha_match": true,
         "chunks": 3,
-        "peak_mem_MB_tracemalloc": 101.07,
-        "rss_MB": 46.5
+        "peak_mem_MB_tracemalloc": 101.08,
+        "rss_MB": 46.16
       },
       {
         "codec": "brotli",
@@ -310,15 +310,15 @@
         "comp_bytes": 666,
         "ratio": 6.4e-05,
         "saved_pct": 99.99,
-        "comp_time_s": 0.025478,
-        "decomp_time_s": 0.029601,
-        "comp_MBps": 392.5,
-        "decomp_MBps": 337.82,
+        "comp_time_s": 0.01757,
+        "decomp_time_s": 0.028981,
+        "comp_MBps": 569.15,
+        "decomp_MBps": 345.05,
         "ok": true,
         "sha_match": true,
         "chunks": 3,
         "peak_mem_MB_tracemalloc": 42.0,
-        "rss_MB": 46.15
+        "rss_MB": 46.17
       }
     ],
     "10MB__text_realistic": [
@@ -330,15 +330,15 @@
         "comp_bytes": 966282,
         "ratio": 0.092152,
         "saved_pct": 90.78,
-        "comp_time_s": 0.035449,
-        "decomp_time_s": 0.073648,
-        "comp_MBps": 282.1,
-        "decomp_MBps": 135.78,
+        "comp_time_s": 0.022357,
+        "decomp_time_s": 0.06808,
+        "comp_MBps": 447.29,
+        "decomp_MBps": 146.89,
         "ok": true,
         "sha_match": true,
         "chunks": 3,
-        "peak_mem_MB_tracemalloc": 21.63,
-        "rss_MB": 56.51
+        "peak_mem_MB_tracemalloc": 31.45,
+        "rss_MB": 57.11
       },
       {
         "codec": "gzip",
@@ -348,15 +348,15 @@
         "comp_bytes": 886270,
         "ratio": 0.084521,
         "saved_pct": 91.55,
-        "comp_time_s": 0.346558,
-        "decomp_time_s": 0.056366,
-        "comp_MBps": 28.86,
-        "decomp_MBps": 177.41,
+        "comp_time_s": 0.166689,
+        "decomp_time_s": 0.058205,
+        "comp_MBps": 59.99,
+        "decomp_MBps": 171.81,
         "ok": true,
         "sha_match": true,
         "chunks": 3,
-        "peak_mem_MB_tracemalloc": 22.12,
-        "rss_MB": 55.98
+        "peak_mem_MB_tracemalloc": 22.97,
+        "rss_MB": 56.86
       }
     ]
   },

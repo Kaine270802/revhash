@@ -27,7 +27,6 @@ import io
 from .codec import (
     HAS_BROTLI,
     HAS_ZSTD,
-    compress_raw_with_flag,
     get_available_codecs as _codec_get_available,
 )
 from .exceptions import RevHashCorruptedError, RevHashDictError, RevHashError, RevHashUnsupportedCodecError
@@ -48,9 +47,8 @@ try:
 except Exception:  # pragma: no cover
     HAS_LZMA = False
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __all__ = [
-    "__version__",
     "compress",
     "decompress",
     "compress_text",
@@ -66,10 +64,6 @@ __all__ = [
     "RevHashCorruptedError",
     "RevHashDictError",
     "RevHashUnsupportedCodecError",
-    "RevHashHeader",
-    # Optimization Builder (M3b) — re-exported for convenience
-    "dict_builder",
-    "algorithms",
 ]
 
 
@@ -174,38 +168,20 @@ def compress(
     if codec != "store" and len(data) > 0:
         # Only trigger if inflated
         # Check that codec's compressed size (without header/footer) is > data len — currently blob includes header/footer
-        # If blob length > len(data) + 64 (header+footer approx) → inflation
-        # Use threshold: len(blob) > len(data) + 64 (+ dict)
         overhead = (
             HEADER_SIZE
             + (len(dict_data) if dict_data else 0)
             + (FOOTER_SHA_SIZE + 4 + (len(data) + chunk_size - 1) // chunk_size * 4 if len(data) > 0 else 36)
         )
-        # Actually compute store blob size accurately for comparison?
-        # We'll just compare blob_len vs store blob len we can generate.
         if len(blob) > len(data) + overhead:  # rare for random
-            # Build store blob
+            # Build store blob (compress_stream's internal auto-store already
+            # handles this for seekable writers; this is a defensive second pass)
             r2 = io.BytesIO(data)
             w2 = io.BytesIO()
             compress_stream(r2, w2, codec="store", level=0, chunk_size=chunk_size, dict_data=None)
             store_blob = w2.getvalue()
             if len(store_blob) < len(blob):
                 return store_blob
-        # Another heuristic: if raw compress_raw without header would be larger (incompressible) we fallback
-        # That case is already partially covered by stream's internal handling but ensure:
-        # Use codec raw check
-        try:
-            raw_comp, was_stored = compress_raw_with_flag(data, codec=codec, level=level, dict_data=dict_data)
-            if was_stored:
-                # incompressible → store blob smaller
-                r2 = io.BytesIO(data)
-                w2 = io.BytesIO()
-                compress_stream(r2, w2, codec="store", level=0, chunk_size=chunk_size, dict_data=None)
-                store_blob = w2.getvalue()
-                if len(store_blob) < len(blob):
-                    return store_blob
-        except Exception:
-            pass
     return blob
 
 

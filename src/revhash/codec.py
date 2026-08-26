@@ -229,7 +229,7 @@ def compress_raw(
         cname = "zstd"
     _validate_level(cname, level)
     # dict sanity: only zstd / maybe future; enforce
-    if dict_data is not None and dict_data is not None and cname not in ("zstd",):
+    if dict_data is not None and cname not in ("zstd",):
         # Allow but warn? spec says dict only for zstd; so if user passes dict for non-zstd raise
         # However if dict_data is empty don't raise
         if len(dict_data) > 0:
@@ -239,7 +239,7 @@ def compress_raw(
     if allow_store_fallback and cname != "store":
         if len(comp) > len(data):
             # store fallback — return raw copy to avoid inflation
-            return bytes(data)
+            comp = bytes(data)
     return comp
 
 
@@ -283,13 +283,35 @@ def decompress_raw(
         raise
 
 
+_CACHE_KEY: tuple | None = None
+_CACHE_VAL: dict[str, bool] | None = None
+
+
 def get_available_codecs() -> dict[str, bool]:
     """Return availability of each codec.
 
     Returns:
         dict mapping codec name to bool: {"store":True,"gzip":True,"zstd":bool,"lzma":bool,"brotli":bool}
     """
-    return {"store": True, "gzip": True, "zstd": HAS_ZSTD, "lzma": HAS_LZMA, "brotli": HAS_BROTLI}
+    global _CACHE_KEY, _CACHE_VAL
+    key = (HAS_ZSTD, HAS_LZMA, HAS_BROTLI)
+    if _CACHE_VAL is not None and _CACHE_KEY == key:
+        return _CACHE_VAL
+    val = {"store": True, "gzip": True, "zstd": HAS_ZSTD, "lzma": HAS_LZMA, "brotli": HAS_BROTLI}
+    _CACHE_KEY = key
+    _CACHE_VAL = val
+    return val
+
+
+def _cache_clear() -> None:
+    global _CACHE_KEY, _CACHE_VAL
+    _CACHE_KEY = None
+    _CACHE_VAL = None
+
+
+# compat for tests that expect lru_cache API
+get_available_codecs.cache_clear = _cache_clear  # type: ignore[attr-defined]
+get_available_codecs.cache_info = lambda: None  # type: ignore[attr-defined]
 
 
 # Extra helper that returns flag (useful for header auto-store)

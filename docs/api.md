@@ -1,6 +1,6 @@
 # revhash API Spec — Design Freeze (M2)
 
-> **Version:** 0.3.0-awesome (Design Freeze 2026-08-25, sync v0.3 polish — không đổi logic, chỉ bump version)  
+> **Version:** 0.4.0 (Design Freeze 2026-08-25, sync v0.3 polish — không đổi logic, chỉ bump version)  
 > **Owner:** Coordinator (dựa trên `docs/research.md` §6)  
 > **Mục tiêu:** Freeze contract cho Core (M3a) + Optimization (M3b) song song, đảm bảo **unlimited streaming O(1)**, byte-identical.
 

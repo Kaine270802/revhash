@@ -1,6 +1,6 @@
 # revhash Embedded API Spec — Design Freeze v0.2 (M2)
 
-> **Version:** 0.3.0-awesome (Design Freeze 2026-08-27, sync v0.3 polish — không đổi logic, chỉ bump version)
+> **Version:** 0.4.0 (Design Freeze 2026-08-27, sync v0.3 polish — không đổi logic, chỉ bump version)
 > **Owner:** Coordinator (dựa trên `docs/research_embedded.md` §3-4)
 > **Mục tiêu:** Freeze contract cho M3a (Core Embed) + M3b (API DX) song song — **thư viện nhúng** file + text trực tiếp, single-file bundle, zero-deps graceful. Không break v0.1.
 

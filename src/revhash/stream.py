@@ -44,6 +44,7 @@ from .header import (
     FOOTER_MAGIC_SIZE,
     FOOTER_SHA_SIZE,
     HEADER_SIZE,
+    HEADER_STRUCT,
     UNKNOWN_SIZE,
     RevHashHeader,
     _normalize_codec_id,  # noqa
@@ -131,10 +132,7 @@ def _parse_header_from_reader(reader: BinaryIO) -> tuple[RevHashHeader, int]:
     # But easier: try RevHashHeader.from_bytes on hdr_bytes padded?
     # Instead read full header via static parse requiring full dict later.
     # We have hdr_bytes (23). Unpack to get dict_len
-    import struct as _struct
-
-    _STRUCT = _struct.Struct("<4sBBBIIQ")
-    magic, version, codec_id, level, chunk_size, dict_len, original_size = _STRUCT.unpack(hdr_bytes)
+    magic, version, codec_id, level, chunk_size, dict_len, original_size = HEADER_STRUCT.unpack(hdr_bytes)
     # validate magic/version quickly
     if magic not in (b"RVH1", b"RVH\x01"):
         raise RevHashCorruptedError(f"bad magic {magic!r}")
@@ -266,23 +264,27 @@ def compress_stream(
             raise ValueError(f"zstd level {level} must be 1..22")
         cctx = zstd.ZstdCompressor(level=level, dict_data=dict_obj)  # type: ignore
         # Single-frame streaming — core requirement
+        crc32_local = zlib.crc32
+        sha_up = sha.update
         with cctx.stream_writer(writer, closefd=False) as comp:  # type: ignore
             while True:
                 chunk = reader.read(chunk_size)
                 if not chunk:
                     break
-                sha.update(chunk)
-                crcs.append(zlib.crc32(chunk) & 0xFFFFFFFF)
+                sha_up(chunk)
+                crcs.append(crc32_local(chunk) & 0xFFFFFFFF)
                 total_raw += len(chunk)
                 comp.write(chunk)
         # after context manager, frame is closed (end-of-frame written)
     elif codec_name == "store":
+        crc32_local = zlib.crc32
+        sha_up = sha.update
         while True:
             chunk = reader.read(chunk_size)
             if not chunk:
                 break
-            sha.update(chunk)
-            crcs.append(zlib.crc32(chunk) & 0xFFFFFFFF)
+            sha_up(chunk)
+            crcs.append(crc32_local(chunk) & 0xFFFFFFFF)
             total_raw += len(chunk)
             writer.write(chunk)
     elif codec_name == "gzip":
@@ -292,20 +294,22 @@ def compress_stream(
             raise ValueError(f"gzip level {level} must be 0..9")
         import zlib as _zlib
 
-        comp = _zlib.compressobj(level, _zlib.DEFLATED, _zlib.MAX_WBITS | 16)  # gzip
+        comp = _zlib.compressobj(level, _zlib.DEFLATED, _zlib.MAX_WBITS | 16)  # type: ignore[assignment]  # gzip
+        crc32_local = zlib.crc32
+        sha_up = sha.update
         while True:
             chunk = reader.read(chunk_size)
             if not chunk:
                 break
-            sha.update(chunk)
-            crcs.append(zlib.crc32(chunk) & 0xFFFFFFFF)
+            sha_up(chunk)
+            crcs.append(crc32_local(chunk) & 0xFFFFFFFF)
             total_raw += len(chunk)
             c = comp.compress(chunk)
             if c:
                 writer.write(c)
-        c = comp.flush()
+        c = comp.flush()  # type: ignore[assignment]
         if c:
-            writer.write(c)
+            writer.write(c)  # type: ignore[call-overload]
     elif codec_name == "lzma":
         if dict_data:
             raise RevHashDictError("lzma dict not supported")
@@ -313,20 +317,22 @@ def compress_stream(
             raise ValueError(f"lzma preset {level} must be 0..9")
         import lzma as _lzma
 
-        comp = _lzma.LZMACompressor(preset=level)
+        comp = _lzma.LZMACompressor(preset=level)  # type: ignore[assignment]
+        crc32_local = zlib.crc32
+        sha_up = sha.update
         while True:
             chunk = reader.read(chunk_size)
             if not chunk:
                 break
-            sha.update(chunk)
-            crcs.append(zlib.crc32(chunk) & 0xFFFFFFFF)
+            sha_up(chunk)
+            crcs.append(crc32_local(chunk) & 0xFFFFFFFF)
             total_raw += len(chunk)
             c = comp.compress(chunk)
             if c:
                 writer.write(c)
-        c = comp.flush()
+        c = comp.flush()  # type: ignore[assignment]
         if c:
-            writer.write(c)
+            writer.write(c)  # type: ignore[call-overload]
     elif codec_name == "brotli":
         if not HAS_BROTLI:
             raise RevHashUnsupportedCodecError("brotli not installed — pip install brotli")
@@ -337,12 +343,14 @@ def compress_stream(
         import brotli  # type: ignore
 
         comp = brotli.Compressor(quality=level)
+        crc32_local = zlib.crc32
+        sha_up = sha.update
         while True:
             chunk = reader.read(chunk_size)
             if not chunk:
                 break
-            sha.update(chunk)
-            crcs.append(zlib.crc32(chunk) & 0xFFFFFFFF)
+            sha_up(chunk)
+            crcs.append(crc32_local(chunk) & 0xFFFFFFFF)
             total_raw += len(chunk)
             c = comp.process(chunk)
             if c:
@@ -631,7 +639,7 @@ def decompress_stream(
         tmp = tempfile.SpooledTemporaryFile(max_size=10 * 1024 * 1024, mode="w+b")
         total_tmp = 0
         while True:
-            chunk = reader.read(65536)
+            chunk = reader.read(131072)
             if not chunk:
                 break
             tmp.write(chunk)
@@ -729,7 +737,10 @@ def decompress_stream(
         # buffer for chunk CRC slicing
         pending = bytearray()
 
-        # helper to process decompressed chunk for crc/sha
+        # helper to process decompressed chunk for crc/sha — local binding
+        chunk_size_local = chunk_size
+        crc32_local = zlib.crc32
+
         def _process_out(out: bytes) -> None:
             nonlocal total_out, pending, crc_computed, sha
             if not out:
@@ -739,10 +750,10 @@ def decompress_stream(
             # CRC handling: need to handle UNKNOWN (no crcs) vs known
             if header.original_size != UNKNOWN_SIZE:
                 pending.extend(out)
-                while len(pending) >= chunk_size:
-                    chunk = bytes(pending[:chunk_size])
-                    crc_computed.append(zlib.crc32(chunk) & 0xFFFFFFFF)
-                    del pending[:chunk_size]
+                while len(pending) >= chunk_size_local:
+                    chunk = bytes(pending[:chunk_size_local])
+                    crc_computed.append(crc32_local(chunk) & 0xFFFFFFFF)
+                    del pending[:chunk_size_local]
             # writer write
             writer.write(out)
 
@@ -769,7 +780,7 @@ def decompress_stream(
             dctx = zstd.ZstdDecompressor(dict_data=dict_obj)  # type: ignore
             with dctx.stream_reader(reader_for_decomp) as sreader:  # type: ignore
                 while True:
-                    out = sreader.read(65536)
+                    out = sreader.read(131072)
                     if not out:
                         break
                     _process_out(out)
@@ -788,9 +799,9 @@ def decompress_stream(
             if out:
                 _process_out(out)
         elif codec_name == "lzma":
-            import lzma as _lzma
+            import lzma as _lzma  # type: ignore[assignment]
 
-            dec = _lzma.LZMADecompressor(format=_lzma.FORMAT_AUTO)
+            dec = _lzma.LZMADecompressor(format=_lzma.FORMAT_AUTO)  # type: ignore[assignment]
             while True:
                 c = reader_for_decomp.read(65536)
                 if not c:
@@ -868,12 +879,14 @@ def decompress_stream(
     # Create limited reader
     limited = _LimitedReader(reader, compressed_len) if compressed_len is not None else reader
 
-    sha = hashlib.sha256()
-    crc_computed: list[int] = []
-    total_out = 0
-    pending = bytearray()
+    sha = hashlib.sha256()  # type: ignore[no-redef]
+    crc_computed: list[int] = []  # type: ignore[no-redef]
+    total_out = 0  # type: ignore[no-redef]
+    pending = bytearray()  # type: ignore[no-redef]
+    chunk_size_local = chunk_size  # type: ignore[no-redef]
+    crc32_local = zlib.crc32  # type: ignore[no-redef]
 
-    def _proc(out: bytes) -> None:
+    def _proc(out: bytes) -> None:  # type: ignore[no-redef]
         nonlocal total_out, crc_computed, pending
         if not out:
             return
@@ -882,10 +895,10 @@ def decompress_stream(
         writer.write(out)
         if header.original_size != UNKNOWN_SIZE:
             pending.extend(out)
-            while len(pending) >= chunk_size:
-                chunk = bytes(pending[:chunk_size])
-                crc_computed.append(zlib.crc32(chunk) & 0xFFFFFFFF)
-                del pending[:chunk_size]
+            while len(pending) >= chunk_size_local:
+                chunk = bytes(pending[:chunk_size_local])
+                crc_computed.append(crc32_local(chunk) & 0xFFFFFFFF)
+                del pending[:chunk_size_local]
         # if unknown, we still accumulate? but spec says no CRC for unknown; still need pending not used
         # but we skip CRC creation for unknown
 
@@ -909,7 +922,7 @@ def decompress_stream(
             dctx = zstd.ZstdDecompressor(dict_data=dict_obj)  # type: ignore
             with dctx.stream_reader(limited) as sreader:  # type: ignore
                 while True:
-                    out = sreader.read(65536)
+                    out = sreader.read(131072)
                     if not out:
                         break
                     _proc(out)
@@ -928,9 +941,9 @@ def decompress_stream(
             if out:
                 _proc(out)
         elif codec_name == "lzma":
-            import lzma as _lzma
+            import lzma as _lzma  # type: ignore[assignment]
 
-            dec = _lzma.LZMADecompressor(format=_lzma.FORMAT_AUTO)
+            dec = _lzma.LZMADecompressor(format=_lzma.FORMAT_AUTO)  # type: ignore[assignment]
             while True:
                 c = limited.read(65536)
                 if not c:

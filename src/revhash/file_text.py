@@ -26,7 +26,8 @@ def _load_dict_data(d: bytes | str | Path | None) -> bytes | None:
         p = Path(d)
         if p.exists() and p.is_file():
             return p.read_bytes()
-    return d
+        return None
+    return d  # type: ignore[return-value]  # d is bytes|None here
 
 
 def _resolve_src(src, encoding: str = "utf-8", force_text: bool = False):

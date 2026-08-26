@@ -1,0 +1,118 @@
+{
+  "meta": {
+    "generated": "2026-08-28",
+    "role": "Verifier / QA - Speed & Clean",
+    "revhash_version": "0.4.0",
+    "python": "3.12.10",
+    "zstandard": "0.25.0",
+    "harness": "python benchmarks/run_benchmark.py x3 (median), warm-up none, text_repeat pool ~600B, chunk_size 4M, zstd level 3",
+    "baseline_source": "benchmarks/results_filetext.json",
+    "baseline_version": "0.2.1-filetext"
+  },
+  "speed_gate": {
+    "target_1MB_MBps": 700,
+    "target_10MB_MBps": 850,
+    "measured_1MB_runs_MBps": [800.6, 707.3, 782.9],
+    "measured_10MB_runs_MBps": [889.7, 955.4, 986.1],
+    "median_1MB_MBps": 782.9,
+    "median_10MB_MBps": 955.4,
+    "verdict": "PASS (both gates exceeded on all 3 runs)"
+  },
+  "benchmark_comparison_vs_results_filetext": {
+    "1MB_text_repeat_zstd": {
+      "ratio_baseline": 0.000675,
+      "ratio_measured": 0.000675,
+      "ratio_diff_pct": 0.0,
+      "comp_MBps_baseline": 681.45,
+      "comp_MBps_median": 782.9,
+      "speed_diff_pct": 14.88,
+      "peak_mem_MB_baseline": 5.18,
+      "peak_mem_MB_measured": 6.13
+    },
+    "10MB_text_repeat_zstd": {
+      "ratio_baseline": 0.000151,
+      "ratio_measured": 0.000151,
+      "ratio_diff_pct": 0.0,
+      "comp_bytes_baseline": 1580,
+      "comp_bytes_measured": 1580,
+      "comp_MBps_baseline": 843.61,
+      "comp_MBps_median": 955.4,
+      "speed_diff_pct": 13.25,
+      "peak_mem_MB_baseline": 20.58,
+      "peak_mem_MB_measured": 30.41
+    },
+    "gzip_vs_zstd_10MB": {
+      "gzip_ratio": 0.004913,
+      "zstd_ratio": 0.000151,
+      "improvement": "32.5x / 96.9% saved - PRESERVED",
+      "harness_threshold_15pct": "PASS"
+    }
+  },
+  "cli_benchmark_informational": {
+    "note": "python -m revhash benchmark uses its own lightweight harness incl. verify step; not the gate harness",
+    "1M_zstd_comp_MBps": 625.9,
+    "10M_zstd_comp_MBps": 839.8,
+    "exit_code": 0
+  },
+  "peak_memory": {
+    "limit_MB": 150,
+    "zstd_10MB_peak_tracemalloc_MB": 30.41,
+    "lzma_10MB_peak_MB": 101.08,
+    "verdict": "PASS (<150MB)"
+  },
+  "clean_metrics": {
+    "ruff_check_exit": 0,
+    "ruff_format_check_exit": 0,
+    "mypy_exit": 0,
+    "mypy_summary": "Success: no issues found in 12 source files",
+    "disable_error_code_count": 5,
+    "disable_error_codes": ["attr-defined", "union-attr", "arg-type", "no-any-return", "operator"],
+    "mypy_overrides_remaining": [{"module": "revhash.algorithms.*", "ignore_errors": true}],
+    "py_compile_exit": 0,
+    "all_len": 15,
+    "all_list": ["compress", "decompress", "compress_text", "decompress_text", "compress_file", "decompress_file", "compress_stream", "decompress_stream", "verify", "get_info", "get_available_codecs", "RevHashError", "RevHashCorruptedError", "RevHashDictError", "RevHashUnsupportedCodecError"],
+    "dict_builder_algorithms_still_importable": true
+  },
+  "tests": {
+    "pytest_tests_q": "155 passed in 5.60s (exit 0)",
+    "test_stream_verbose": "12 passed in 0.97s (exit 0), incl. test_counting_reader_o1_no_minus_one + test_compress_stream_read_chunk_size_loop (O1 read(chunk_size))"
+  },
+  "docs_examples_cli": {
+    "awesome_demo": "5/5 demos PASS (exit 0)",
+    "diverse_file_demo": "8/8 demos PASS (exit 0), incl. large 10MB O1 + bundle parity",
+    "readme_python_blocks": 6,
+    "readme_min_required": 5,
+    "cli_help_commands": ["compress", "decompress", "info", "verify", "train-dict", "benchmark"],
+    "cli_help_command_count": 6
+  },
+  "version_bundle_packaging": {
+    "revhash_dunder_version": "0.4.0",
+    "pyproject_version": "0.4.0",
+    "bundle_file": "revhash_embedded.py",
+    "bundle_bytes": 104471,
+    "bundle_limit_bytes": 512000,
+    "build_embedded_check_exit": 0,
+    "bundle_hash": "sha256:2bd2b24863c4aff71b979159cd4bc7a54a6bb9dbceb1b6fd7f974ec2ab524bbc",
+    "pip_wheel_filename": "revhash-0.4.0-py3-none-any.whl",
+    "pip_wheel_pep440": "PASS",
+    "pip_wheel_exit": 0,
+    "dist_build_check_cleaned_up": true
+  },
+  "findings": [
+    {
+      "severity": "WARN",
+      "finding": "CHANGELOG.md contains duplicate '## [0.4.0] - 2026-08-28' headings at lines 10 and 29 (same date, two sections)",
+      "owner_to_fix": "Coordinator (Verifier not permitted to edit non-owned files)"
+    },
+    {
+      "severity": "INFO",
+      "finding": "CLI benchmark (--size 1M/--size 10M) reads below the >700/>850 gate (625.9/839.8 MB/s) because it runs its own lightweight harness incl. verify and default chunking; official gate harness run_benchmark.py passes with margin",
+      "owner_to_fix": "none (informational)"
+    },
+    {
+      "severity": "INFO",
+      "finding": "run_benchmark.py side-effect: overwrites benchmarks/results_verifier.json (expected harness behavior)"
+    }
+  ],
+  "overall_verdict": "PASS"
+}

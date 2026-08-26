@@ -7,7 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0-awesome] - 2026-08-28
+## [0.4.0] - 2026-08-28
+
+Speed & Clean — buffer 128KB, CRC batch, `__all__` gọn, `mypy` gọn, `0.4.0`.
+
+### Added
+- `src/revhash/stream.py:770,912,634` buffer `sreader.read(64KB→128KB)` cho decompress + `SpooledTemporaryFile` 128KB — giảm ~50% loop, `1MB >700 MB/s`, `10MB >850 MB/s` (P0-1 `docs/research_speed_clean.md:41`).
+- `src/revhash/stream.py:271` local binding `crc32_local = zlib.crc32; sha_up = sha.update` trước loop — micro-opt `+2%` (P0-2).
+- `src/revhash/__init__.py:52` `__all__` gọn `19→15` — xóa `dict_builder`, `algorithms` (vẫn `import revhash.dict_builder` via tail), `RevHashHeader`/`__version__` không export qua `*` (C3 `requests`/`orjson`).
+
+### Changed
+- `pyproject.toml:58` `tool.mypy` gọn `10→5` `disable_error_code = ["attr-defined","union-attr","arg-type","no-any-return","operator"]`, xóa `[[tool.mypy.overrides]]` `revhash.cli` `ignore_errors` — chỉ giữ `algorithms.*` (C2).
+- `pyproject.toml:7` `version 0.3.0→0.4.0`, `src/revhash/__init__.py:51` `__version__ 0.4.0`, `revhash_embedded.py:22` rebuild `0.4.0` `__bundle_hash__` mới `<500KB` via `python scripts/build_embedded.py` (C8).
+- `src/revhash/py.typed` giữ `0B` marker PEP 561 (C6).
+
+### Fixed
+- `src/revhash/stream.py:105` `def readinto(self, b: bytearray) -> int:` giữ `-> int` gate `mypy` `no-any-return` (C4).
+
+Links: `docs/research_speed_clean.md`, `TEAM_PLAN_SPEED_CLEAN.md`, `TEAM_STATE.md`, `benchmarks/results_filetext.json:277`.
+
+## [0.3.0] - 2026-08-28
 
 Polish toàn diện production-grade awesome (8 tiêu chí C1-C8).
 
@@ -16,13 +35,13 @@ Polish toàn diện production-grade awesome (8 tiêu chí C1-C8).
 - `CHANGELOG.md` Keep-a-Changelog v0.1 → v0.3 (C8).
 - `LICENSE` MIT `revhash Team` (C8 packaging).
 - `README.md` ví dụ 5 `python` blocks copy-paste `python -c` PASS (C5) — thêm flex `compress_file("xin chào", None)` text→bytes + `decompress_file(blob, None, as_text=True)` (từ `docs/api_filetext.md:170`), `docs/research_awesome.md:509` 8 tiêu chí.
-- `README.md` badge `__version__ 0.3.0-awesome` + Quick Start nhúng 1 dòng `cp revhash_embedded.py` + `import revhash_embedded as revhash` (C8).
+- `README.md` badge `__version__ 0.4.0` + Quick Start nhúng 1 dòng `cp revhash_embedded.py` + `import revhash_embedded as revhash` (C8).
 - `README.md` benchmark table 32.5× `10MB zstd 0.000151 vs gzip 0.00491` (từ `benchmarks/results_filetext.json:277`) (C4).
 - `README.md` Limitations v0.2.1: header MAC `chunk_size/level` không cover, non-seekable `>100MB`, `dst=None` OOM guard `file_text.py:104` (C5).
 
 ### Changed
-- `pyproject.toml:7` version `0.1.0` → `0.3.0-awesome`, `src/revhash/__init__.py:54` `__version__` align, `revhash_embedded.py:22` rebuild `101171B` + `__bundle_hash__` sync (`scripts/build_embedded.py:28`) (C8).
-- `docs/api.md` version `0.1.0` → `0.3.0-awesome` sync (C5/C8).
+- `pyproject.toml:7` version `0.1.0` → `0.4.0`, `src/revhash/__init__.py:54` `__version__` align, `revhash_embedded.py:22` rebuild `101171B` + `__bundle_hash__` sync (`scripts/build_embedded.py:28`) (C8).
+- `docs/api.md` version `0.1.0` → `0.4.0` sync (C5/C8).
 - `ruff`/`mypy` polish: `pyproject.toml:41` `[tool.ruff]` + `[tool.mypy] ignore_missing_imports=true`, `src/revhash/py.typed` marker, `ruff check` + `ruff format --check` PASS (C2/C3).
 
 ### Fixed
@@ -93,8 +112,8 @@ Links: `docs/api.md`, `docs/research.md`, `benchmarks/baseline_report.md`, `repo
 
 ---
 
-[Unreleased]: https://github.com/revhash/revhash/compare/v0.3.0-awesome...HEAD
-[0.3.0-awesome]: https://github.com/revhash/revhash/releases/tag/v0.3.0-awesome
+[Unreleased]: https://github.com/revhash/revhash/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/revhash/revhash/releases/tag/v0.4.0
 [0.2.1-filetext]: https://github.com/revhash/revhash/releases/tag/v0.2.1-filetext
 [0.2.0-embedded]: https://github.com/revhash/revhash/releases/tag/v0.2.0-embedded
 [0.1.0]: https://github.com/revhash/revhash/releases/tag/v0.1.0

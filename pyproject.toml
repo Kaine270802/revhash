@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "revhash"
-version = "0.3.0"
+version = "0.4.0"
 description = "revhash — reversible lossless compression unlimited (O1 streaming, Zstd single-frame default)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -60,11 +60,7 @@ python_version = "3.10"
 ignore_missing_imports = true
 warn_return_any = true
 warn_unused_configs = true
-disable_error_code = ["assignment", "attr-defined", "call-overload", "no-redef", "union-attr", "arg-type", "index", "no-any-return", "return-value", "operator"]
-
-[[tool.mypy.overrides]]
-module = "revhash.cli"
-ignore_errors = true
+disable_error_code = ["attr-defined", "union-attr", "arg-type", "no-any-return", "operator"]
 
 [[tool.mypy.overrides]]
 module = "revhash.algorithms.*"

@@ -1,6 +1,6 @@
 # revhash File↔Text Flexible API Spec — Design Freeze v0.2.1 (M2)
 
-> **Version:** 0.3.0-awesome (Design Freeze 2026-08-28, sync v0.3 polish — không đổi logic, chỉ bump version)
+> **Version:** 0.4.0 (Design Freeze 2026-08-28, sync v0.3 polish — không đổi logic, chỉ bump version)
 > **Owner:** Coordinator (dựa trên `docs/research_filetext.md` §4)
 > **Mục tiêu:** Freeze contract cho M3 Builder — `compress_file`/`decompress_file` linh hoạt **File ⇄ Văn bản**, `dst` tùy chọn, không break v0.2 embedded (142 tests).
 

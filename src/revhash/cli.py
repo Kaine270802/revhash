@@ -72,6 +72,7 @@ def _cmd_compress(args: argparse.Namespace) -> int:
         info = compress_file(
             src, dst, codec=args.codec, level=args.level, chunk_size=chunk_size, dict_data=dict_data, show_progress=True
         )
+        assert isinstance(info, dict)  # compress_file with dst=Path returns dict
         print(
             f"[ok] {src} -> {dst} | {info['original_size']} -> {info['compressed_size']} bytes | ratio {info['ratio']:.6f} | chunks {info['chunks']}"
         )
@@ -91,6 +92,7 @@ def _cmd_decompress(args: argparse.Namespace) -> int:
             dict_data = dict_path.read_bytes()
     try:
         info = decompress_file(src, dst, dict_data=dict_data, show_progress=True)
+        assert isinstance(info, dict)  # decompress_file with dst=Path returns dict
         print(
             f"[ok] {src} -> {dst} | {info['compressed_size']} -> {info['original_size']} bytes | codec {info['codec']}"
         )
