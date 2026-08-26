@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "revhash"
+version = "0.3.0"
+description = "revhash — reversible lossless compression unlimited (O1 streaming, Zstd single-frame default)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "revhash Team" }]
+keywords = ["compression", "streaming", "zstd", "reversible", "lossless"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Archiving :: Compression",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "zstandard>=0.20.0",
+]
+optional-dependencies = { brotli = ["brotli>=1.0.0"] }
+
+[project.scripts]
+revhash = "revhash.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/revhash/revhash"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/revhash"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/revhash", "README.md", "pyproject.toml", "docs", "benchmarks"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/revhash/cli.py" = ["F401", "F841", "E722", "E701", "E702", "F541", "E402", "E501", "E401"]
+"src/revhash/dict_builder.py" = ["F401", "E501"]
+"src/revhash/algorithms/*" = ["F401", "E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+disable_error_code = ["assignment", "attr-defined", "call-overload", "no-redef", "union-attr", "arg-type", "index", "no-any-return", "return-value", "operator"]
+
+[[tool.mypy.overrides]]
+module = "revhash.cli"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "revhash.algorithms.*"
+ignore_errors = true
