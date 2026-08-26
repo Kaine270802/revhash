@@ -4,9 +4,9 @@
 
 *Tên `revhash` nhấn mạnh “hash có thể dịch ngược” — bản chất là nén lossless với header/checksum, không phải SHA/md5.*
 
-> **Version:** `0.3.0-awesome` — `__version__ = "0.3.0-awesome"` — `import revhash` — nhúng 1 dòng `cp revhash_embedded.py ./myproject/` → `import revhash_embedded as revhash` (bundle 101KB `<500KB`, `__bundle_hash__` sync).
+> **Version:** `0.3.0` — `__version__ = "0.3.0"` — `import revhash` — nhúng 1 dòng `cp revhash_embedded.py ./myproject/` → `import revhash_embedded as revhash` (bundle 101KB `<500KB`, `__bundle_hash__` sync).
 
-![version](https://img.shields.io/badge/version-0.3.0--awesome-blue) ![tests](https://img.shields.io/badge/tests-154%20PASS-brightgreen) ![bundle](https://img.shields.io/badge/bundle-101KB-blue) ![python](https://img.shields.io/badge/python-%3E%3D3.9-blue)
+![version](https://img.shields.io/badge/version-0.3.0-blue) ![tests](https://img.shields.io/badge/tests-155%20PASS-brightgreen) ![bundle](https://img.shields.io/badge/bundle-101KB-blue) ![python](https://img.shields.io/badge/python-%3E%3D3.9-blue) ![github](https://img.shields.io/badge/github-Kaine270802%2Frevhash-black?logo=github)
 
 ---
 
@@ -28,17 +28,48 @@
 
 ---
 
-## 📦 Install
+## 📦 Cài đặt — Dễ nhất từ GitHub (khuyên dùng)
+
+> **Chỉ 1 lệnh là chạy — không cần clone thủ công**
 
 ```bash
-pip install -e .
-# optional — để dùng brotli codec
-pip install brotli
-# dev / test
-pip install pytest psutil
+# 1) Cài trực tiếp từ GitHub (nhanh nhất, luôn bản mới nhất main)
+pip install git+https://github.com/Kaine270802/revhash.git
+
+# 2) Hoặc: cài kèm brotli để có codec brotli-11 (ratio tốt nhất)
+pip install git+https://github.com/Kaine270802/revhash.git
+pip install brotli zstandard
+
+# 3) Kiểm tra cài đặt
+python -c "import revhash; print(revhash.__version__); print(revhash.get_available_codecs())"
+# → 0.3.0  {'store': True, 'gzip': True, 'zstd': True, 'lzma': True, 'brotli': True}
 ```
 
-**Yêu cầu:** Python ≥3.9, `zstandard>=0.20.0` (bắt buộc cho default), `brotli>=1.0.0` optional.
+**Cách khác (cho dev, muốn sửa code):**
+
+```bash
+# Clone rồi cài editable
+git clone https://github.com/Kaine270802/revhash.git
+cd revhash
+pip install -e .          # cài revhash ở chế độ editable
+pip install -e ".[dev]"   # nếu có extra dev (pytest, ruff, mypy)
+
+# Dev / test (chạy 155 tests)
+pip install pytest psutil ruff mypy
+pytest tests -q            # 155 passed
+ruff check src/revhash
+mypy src/revhash --ignore-missing-imports
+```
+
+**Nhúng 1 file (không cần pip — copy là chạy):**
+
+```bash
+# Chỉ cần 1 file duy nhất <500KB
+cp revhash_embedded.py ./myproject/
+python -c "import revhash_embedded as revhash; print(revhash.compress_text('xin chào'))"
+```
+
+**Yêu cầu:** Python ≥3.9, `zstandard>=0.20.0` (tự cài khi `pip install git+...`), `brotli>=1.0.0` optional, `lzma`/`gzip` đã có sẵn trong stdlib.
 
 ---
 
@@ -246,7 +277,7 @@ Xem `benchmarks/baseline_report.md` (304 dòng) và `reports/verification.md` §
 
 ## ✅ Verification (Verifier 154/154 PASS — v0.2.1, v0.3 polish giữ)
 
-Chạy `pytest tests -q` (7s, Python 3.12.10, `__version__ 0.3.0-awesome`):
+Chạy `pytest tests -q` (7s, Python 3.12.10, `__version__ 0.3.0`):
 
 - **Multi-size:** 0B,1B,100B,1KB,10KB,1MB,10MB,50MB GenReader streaming, 200MB mock 1GB, 20MB file — tất cả SHA256 byte-identical.
 - **O1 memory:** 10MB peak 20.58MB, 50MB peak 51MB, rss 46MB — đều <150MB; `CountingReader` chứng minh không `read(-1)`.
@@ -277,7 +308,7 @@ Chi tiết fixes xem `reports/fix_report.md`. Sau fix re-test **108/108 PASS** k
 
 ---
 
-## ⚠️ Limitations (v0.3.0-awesome — kế thừa v0.2.1)
+## ⚠️ Limitations (v0.3.0 — kế thừa v0.2.1)
 
 **Được document rõ, sẽ fix/bump format trong v0.4 (không breaking v0.3):**
 
@@ -310,9 +341,9 @@ Chi tiết fixes xem `reports/fix_report.md`. Sau fix re-test **108/108 PASS** k
 - `docs/research_embedded.md` — 5 pattern nhúng + bundle 85KB
 - `docs/research_filetext.md` — file↔text flex 4×3 + `dst None/Path`
 - `docs/research_awesome.md` — 8 tiêu chí awesome × 3 libs (requests/rich/pydantic) + polish P0/P1
-- `docs/api.md` — frozen API + header spec + streaming contract (`Version: 0.3.0-awesome`)
-- `docs/api_embedded.md` — embedded single-file + `get_available_codecs` (`Version: 0.3.0-awesome`)
-- `docs/api_filetext.md` — file↔text flex 6 ví dụ (`Version: 0.3.0-awesome`)
+- `docs/api.md` — frozen API + header spec + streaming contract (`Version: 0.3.0`)
+- `docs/api_embedded.md` — embedded single-file + `get_available_codecs` (`Version: 0.3.0`)
+- `docs/api_filetext.md` — file↔text flex 6 ví dụ (`Version: 0.3.0`)
 - `benchmarks/baseline_report.md` — số liệu baseline 10KB→100MB
 - `benchmarks/results_filetext.json:277` — 10MB zstd 0.000151 vs gzip 0.00491 = 32.5×
 - `examples/embed_demo.py` + `file_text_demo.py` + `awesome_demo.py` (NEW 5 demos PASS)
@@ -328,7 +359,7 @@ Chi tiết fixes xem `reports/fix_report.md`. Sau fix re-test **108/108 PASS** k
 - **v0.1.0 (DONE):** O1 streaming seekable, 108 tests, ratio 32× gzip, fixes 5/7 risks, limitations documented.
 - **v0.2.0-embedded (DONE):** single-file `revhash_embedded.py` 89KB `<500KB`, `compress_text` strict, `get_available_codecs` fallback, 142 tests.
 - **v0.2.1-filetext (DONE):** file↔text flex 4×3 `compress_file(text,None)→bytes` + `decompress_file(blob,None,as_text=True)`, `dst=None` OOM guard `>100MB`, `force_text`, 154 tests, 32.5× giữ.
-- **v0.3.0-awesome (hiện tại):** polish toàn diện — 154+ tests `ruff`/`mypy` PASS, `README` 5 ví dụ copy-paste, `examples/awesome_demo.py` 5 demos PASS, `CHANGELOG.md` Keep-a-Changelog, `LICENSE` MIT, `__version__ 0.3.0-awesome` align + `__bundle_hash__` sync, `benchmark --size 100M` `<10s`.
+- **v0.3.0 (hiện tại):** polish toàn diện — 154+ tests `ruff`/`mypy` PASS, `README` 5 ví dụ copy-paste, `examples/awesome_demo.py` 5 demos PASS, `CHANGELOG.md` Keep-a-Changelog, `LICENSE` MIT, `__version__ 0.3.0` align + `__bundle_hash__` sync, `benchmark --size 100M` `<10s`.
 - **v0.4 (next):** Header CRC/SHA cover header (version bump), `compressed_len` field cho non-seekable O1 thực sự, dedup store fallback, real 100MB disk test, `readinto` type hints, CI `GitHub Actions`.
 
 ---
