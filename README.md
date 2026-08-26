@@ -1,75 +1,73 @@
-# revhash — Thư viện Python nén “hash dịch ngược được” unlimited (O1 streaming)
+# revhash — Reversible Lossless Compression for Python (Unlimited, O(1) Streaming)
 
-> **Reversible lossless compression** — tối ưu dung lượng nhất, decode 100% byte-identical, **KHÔNG GIỚI HẠN dung lượng** (0 B → 10 GB+), **O(1) memory streaming** (chunk 1–8 MB, peak <150 MB dù 10 GB).
+> **Lossless, reversible compression** — optimal ratio, 100% byte-identical decode, **unlimited size** (0 B → 10 GB+), **O(1) streaming** (1–8 MB chunks, <150 MB peak even for 10 GB).
 
-*Tên `revhash` nhấn mạnh “hash có thể dịch ngược” — bản chất là nén lossless với header/checksum, không phải SHA/md5.*
+*`revhash` means “reversible hash” — lossless compression with header/checksum, not cryptographic SHA/md5.*
 
-> **Version:** `0.3.0` — `__version__ = "0.3.0"` — `import revhash` — nhúng 1 dòng `cp revhash_embedded.py ./myproject/` → `import revhash_embedded as revhash` (bundle 101KB `<500KB`, `__bundle_hash__` sync).
+> **Version:** `0.3.0` — `import revhash` — embed in one line `cp revhash_embedded.py ./myproject/` → `import revhash_embedded as revhash` (single-file bundle 101KB `<500KB`, `__bundle_hash__` synced).
 
 ![version](https://img.shields.io/badge/version-0.3.0-blue) ![tests](https://img.shields.io/badge/tests-155%20PASS-brightgreen) ![bundle](https://img.shields.io/badge/bundle-101KB-blue) ![python](https://img.shields.io/badge/python-%3E%3D3.9-blue) ![github](https://img.shields.io/badge/github-Kaine270802%2Frevhash-black?logo=github)
 
 ---
 
-## ✨ Highlights (từ benchmark thực thi)
+## ✨ Highlights (real benchmarks)
 
-| Tiêu chí | revhash (zstd-3 streaming) | gzip-6 | Kết luận |
-|----------|---------------------------|--------|----------|
-| **Ratio 10 MB text_repeat** | **0.000151** (1.58 KB) | 0.00491 (51 KB) | **Tốt hơn 32.5×** (96.9% saving) |
+| Metric | revhash (zstd-3 streaming) | gzip-6 | Result |
+|--------|---------------------------|--------|--------|
+| **Ratio 10 MB text_repeat** | **0.000151** (1.58 KB) | 0.00491 (51 KB) | **32.5× better** (96.9% saved) |
 | **Ratio 100 MB text_repeat** | **0.00010** (10 KB) | 0.00485 (509 KB) | 48× |
-| **Speed 10 MB encode** | **836–6478 MB/s** | 337 MB/s | Nhanh hơn 2–20× |
-| **Overhead chunk** | **0%** streaming single-frame (20 MB 2059 B vs 2060 B whole) | +12% independent | Giữ ratio khi chia chunk |
-| **Memory 50 MB stream** | **51 MB peak** (O1) | 100 MB whole | Không scale theo file size |
-| **Dict small file 10 KB** | **30 B vs 150 B (80% saving)** | — | Embedded dict 327 B demo |
-| **Tests** | **154/154 PASS** (0B→50MB + fuzz 100 + tamper 100%, file↔text flex) | — | Verifier + Critic độc lập |
+| **Speed 10 MB encode** | **836–6478 MB/s** | 337 MB/s | 2–20× faster |
+| **Chunk overhead** | **0%** streaming single-frame (20 MB 2059 B vs 2060 B whole) | +12% independent | Ratio preserved |
+| **Memory 50 MB stream** | **51 MB peak** (O1) | 100 MB whole | Constant memory |
+| **Dict small file 10 KB** | **30 B vs 150 B (80% saved)** | — | Embedded dict 327 B demo |
+| **Tests** | **155/155 PASS** (0B→50MB + fuzz 100 + tamper 100%, file↔text flex) | — | Independent Verifier + Critic |
 
-*Số liệu từ `benchmarks/results.json` (Python 3.12.10, zstd 0.25.0, brotli 1.2.0), `benchmarks/results_filetext.json:277` (10MB zstd `0.000151` vs gzip `0.00491` = **32.5×**) và `reports/verification.md`.*
+*Numbers from `benchmarks/results.json` (Python 3.12.10, zstd 0.25.0, brotli 1.2.0) and `benchmarks/results_filetext.json:277` (10MB zstd `0.000151` vs gzip `0.00491` = **32.5×**) and `reports/verification.md`.*
 
-> **Benchmark 32.5× chi tiết:** `benchmarks/results_filetext.json:277` 10MB `zstd 0.000151` (1580B) vs `gzip 0.00491` (51516B) → saving 96.9% (chi tiết `benchmarks/baseline_report.md` + `docs/research_awesome.md` §1 C4).
+> **32.5× detail:** `benchmarks/results_filetext.json:277` 10MB `zstd 0.000151` (1580B) vs `gzip 0.00491` (51516B) → 96.9% saved (see `benchmarks/baseline_report.md`).
 
 ---
 
-## 📦 Cài đặt — Dễ nhất từ GitHub (khuyên dùng)
+## 📦 Installation — From GitHub (Recommended, 1 Command)
 
-> **Chỉ 1 lệnh là chạy — không cần clone thủ công**
+> **One command and you are ready — no manual clone needed**
 
 ```bash
-# 1) Cài trực tiếp từ GitHub (nhanh nhất, luôn bản mới nhất main)
+# 1) Install directly from GitHub (fastest, always latest on main)
 pip install git+https://github.com/Kaine270802/revhash.git
 
-# 2) Hoặc: cài kèm brotli để có codec brotli-11 (ratio tốt nhất)
-pip install git+https://github.com/Kaine270802/revhash.git
+# 2) Optional: install brotli for brotli-11 codec (best ratio)
 pip install brotli zstandard
 
-# 3) Kiểm tra cài đặt
+# 3) Verify installation
 python -c "import revhash; print(revhash.__version__); print(revhash.get_available_codecs())"
 # → 0.3.0  {'store': True, 'gzip': True, 'zstd': True, 'lzma': True, 'brotli': True}
 ```
 
-**Cách khác (cho dev, muốn sửa code):**
+**Other ways (for contributors who want to edit code):**
 
 ```bash
-# Clone rồi cài editable
+# Clone and install editable
 git clone https://github.com/Kaine270802/revhash.git
 cd revhash
-pip install -e .          # cài revhash ở chế độ editable
-pip install -e ".[dev]"   # nếu có extra dev (pytest, ruff, mypy)
+pip install -e .          # editable install
+pip install pytest psutil ruff mypy  # dev deps
 
-# Dev / test (chạy 155 tests)
-pip install pytest psutil ruff mypy
+# Run tests (155 tests)
 pytest tests -q            # 155 passed
 ruff check src/revhash
 mypy src/revhash --ignore-missing-imports
 ```
 
-**Nhúng 1 file (không cần pip — copy là chạy):**
+**Single-file embed (no pip needed — just copy):**
 
 ```bash
-# Chỉ cần 1 file duy nhất <500KB
+# Only 1 file <500KB
 cp revhash_embedded.py ./myproject/
-python -c "import revhash_embedded as revhash; print(revhash.compress_text('xin chào'))"
+python -c "import revhash_embedded as revhash; print(revhash.compress_text('hello'))"
 ```
 
-**Yêu cầu:** Python ≥3.9, `zstandard>=0.20.0` (tự cài khi `pip install git+...`), `brotli>=1.0.0` optional, `lzma`/`gzip` đã có sẵn trong stdlib.
+**Requirements:** Python ≥3.9, `zstandard>=0.20.0` (auto-installed via `pip install git+...`), `brotli>=1.0.0` optional, `lzma`/`gzip` are stdlib.
 
 ---
 
@@ -80,7 +78,7 @@ python -c "import revhash_embedded as revhash; print(revhash.compress_text('xin 
 ```python
 import revhash
 
-data = b"Xin chao the gioi! " * 100_000  # ~1.9 MB lặp
+data = b"Hello world! " * 100_000  # ~1.2 MB repeated
 blob = revhash.compress(data, codec="zstd", level=3, chunk_size=4*1024*1024)
 print(f"{len(data)} -> {len(blob)} ratio={len(blob)/len(data):.5f}")  # 0.0002
 
@@ -89,202 +87,173 @@ assert orig == data  # byte-identical
 assert revhash.verify(blob)  # CRC32 per-chunk + SHA256 global
 
 print(revhash.get_info(blob))
-# {'codec': 'zstd', 'level': 3, 'chunk_size': 4194304, 'original_size': 1900000,
-#  'compressed_size': 380, 'ratio': 0.0002, 'has_dict': False, 'chunks': 1, ...}
+# {'codec': 'zstd', 'level': 3, 'chunk_size': 4194304, 'original_size': 1200000,
+#  'compressed_size': 250, 'ratio': 0.0002, 'has_dict': False, 'chunks': 1, ...}
 ```
 
-### File unlimited (O1 — không load toàn bộ)
+### Unlimited files (O(1) — never loads whole file)
 
 ```python
 import revhash
 from pathlib import Path
-# 100 MB, 1 GB hay 10 GB đều chỉ tốn <150 MB RAM — demo 1MB
+# 100 MB, 1 GB or 10 GB all use <150 MB RAM — demo with 1MB
 Path("big.log").write_bytes(b"hello world\n" * 80000)
 revhash.compress_file("big.log", "big.rvh", codec="zstd", level=3, chunk_size=4*1024*1024)
 revhash.decompress_file("big.rvh", "restored.log")
 assert open("big.log","rb").read() == open("restored.log","rb").read()
 
-# Stream generic (pipe/socket/BytesIO)
+# Generic streaming (pipe/socket/BytesIO)
 Path("in.bin").write_bytes(b"stream demo " * 1000)
 with open("in.bin","rb") as r, open("out.rvh","wb") as w:
     revhash.compress_stream(r, w, codec="zstd")
 with open("out.rvh","rb") as r, open("rest.bin","wb") as w:
     revhash.decompress_stream(r, w)
 assert Path("rest.bin").read_bytes() == Path("in.bin").read_bytes()
-print("file PASS", Path("big.rvh").stat().st_size)
 ```
 
-### File↔Text linh hoạt (NEW v0.2.1 — text ⇄ bytes/file ⇄ text)
+### Flexible File ↔ Text (NEW v0.2.1)
 
 ```python
 import revhash
 from pathlib import Path
 
-# text → bytes (dst=None) — không chạm filesystem, trả bytes
-blob = revhash.compress_file("xin chào 🌍", None)
+# text -> bytes (dst=None) — no filesystem touch, returns bytes
+blob = revhash.compress_file("hello world 🌍", None)
 assert isinstance(blob, bytes)
 
-# bytes → text (as_text=True) — decode strict utf-8
+# bytes -> text (as_text=True) — strict utf-8 decode
 text = revhash.decompress_file(blob, None, as_text=True)
-assert text == "xin chào 🌍"
+assert text == "hello world 🌍"
 
-# file → text as_text (sample.txt → blob file → str)
-Path("sample.txt").write_text("nội dung", encoding="utf-8")
+# file -> text (sample.txt -> blob file -> str)
+Path("sample.txt").write_text("file content", encoding="utf-8")
 revhash.compress_file(Path("sample.txt"), "sample.rvh")
-assert revhash.decompress_file("sample.rvh", None, as_text=True) == "nội dung"
+assert revhash.decompress_file("sample.rvh", None, as_text=True) == "file content"
 
-# bytes raw S4 → bytes
+# raw bytes S4 -> bytes
 raw = b"\x00\xff raw"
 assert revhash.decompress_file(revhash.compress_file(raw, None), None) == raw
 
-# force_text: ép "notes.txt" là text literal dù file tồn tại
+# force_text: force "notes.txt" as literal text even if file exists
 Path("notes.txt").write_text("file content", encoding="utf-8")
 assert revhash.decompress_file(revhash.compress_file("notes.txt", None, force_text=True), None, as_text=True) == "notes.txt"
-
-print("flex PASS", len(blob))
 ```
 
-> **Heuristic:** `str` path tồn tại + `is_file()` → file (S2), ngược lại → text (S3) + `encode("utf-8","strict")`; `bytes` → raw (S4); `Path` explicit → file (S1). `dst=None` → RAM, `dst=Path` → file + `mkdir(parents=True)`. Guard `>100MB dst=None → ValueError` (tránh OOM) — xem `src/revhash/file_text.py:104` + `docs/api_filetext.md:170` 6 ví dụ.
+> **Heuristic:** `str` path exists + `is_file()` → file (S2), else → text `encode("utf-8","strict")` (S3); `bytes` → raw (S4); `Path` → file (S1). `dst=None` → RAM, `dst=Path` → file + `mkdir(parents=True)`. Guard `>100MB dst=None → ValueError` — see `src/revhash/file_text.py:104` and `docs/api_filetext.md:170`.
 
-### Đa dạng file — `compress_file` hỗ trợ mọi loại file (NEW v0.3)
+### Diverse file types — `compress_file` handles any file (NEW v0.3)
 
-`compress_file` đọc `open(src,"rb")` O(1) nên **mọi file đều nén được**: `.txt`, `.json`, `.csv`, `.bin`, `.log`, file lớn 10MB+...
+`compress_file` uses `open(src,"rb")` O(1) streaming, so **any file type** compresses: `.txt`, `.json`, `.csv`, `.bin`, `.log`, large 10MB+...
 
 ```python
 import revhash, json, csv
 from pathlib import Path
 
 # .json file
-Path("data.json").write_text(json.dumps({"xin": "chào"}), encoding="utf-8")
+Path("data.json").write_text(json.dumps({"hello": "world"}), encoding="utf-8")
 revhash.compress_file("data.json", "data.json.rvh")
 revhash.decompress_file("data.json.rvh", "restored.json")
 
 # .csv file
 with open("table.csv","w",newline="",encoding="utf-8") as f:
-    csv.writer(f).writerows([[1,"tên_1"],[2,"tên_2"]])
+    csv.writer(f).writerows([[1,"name_1"],[2,"name_2"]])
 revhash.compress_file("table.csv", "table.csv.rvh")
 
 # .bin binary
 Path("binary.bin").write_bytes(b"\x00\xff\xfe" * 10000)
 revhash.compress_file("binary.bin", "binary.bin.rvh")
 
-# JSON text trực tiếp (không cần file)
+# JSON text directly (no file needed)
 blob = revhash.compress_file('{"hello": "world"}', None)
 assert revhash.decompress_file(blob, None, as_text=True) == '{"hello": "world"}'
 ```
 
-> **File ví dụ đầy đủ:** `examples/diverse_file_demo.py` — 8 demos chi tiết (`.txt`/`.json` file + text trực tiếp/`.csv`/`.bin`/`.log`/`force_text`/file lớn 10MB O1 + bundle parity + dict) — chạy `python examples/diverse_file_demo.py` → 8/8 PASS O1.
+> **Full diverse examples:** `examples/diverse_file_demo.py` — 8 detailed demos (`.txt`/`.json` file + direct text/`.csv`/`.bin`/`.log`/`force_text`/large 10MB O1 + bundle parity + dict) — run `python examples/diverse_file_demo.py` → 8/8 PASS O1.
 
-### Dictionary cho small file / chunk đầu
+### Dictionary for small files
 
 ```python
 import revhash
 from revhash import dict_builder
-# Train từ corpus synthetic (100 sample, mỗi ~10KB) — không cần file thật
-samples = [b"Xin chao the gioi! hello world! " * 600 for _ in range(100)]
+# Train from synthetic corpus (100 samples, each ~10KB) — no real files needed
+samples = [b"Hello world! " * 600 for _ in range(100)]
 dict_data = dict_builder.train(samples, dict_size=4096)
-dict_builder.save(dict_data, "dicts/vi_text.dict")
+dict_builder.save(dict_data, "dicts/my.dict")
 
-# Hoặc từ files (demo 12 file tạm — cần ≥10 samples)
-from pathlib import Path
-tmp_files = []
-for i in range(12):
-    p = Path(f"tmp_dict_{i}.txt")
-    p.write_text("hello world " * 500, encoding="utf-8")
-    tmp_files.append(str(p))
-dict_data2 = dict_builder.train_from_files(tmp_files, dict_size=4096)
 blob_with_dict = revhash.compress(b"hello " * 2000, dict_data=dict_data)
-# 10KB raw saving 79.4% (170B -> 35B), total 15% với blob 500B ->425B
-
-# Decompress: nếu dict embedded trong blob thì không cần truyền lại
-orig = revhash.decompress(blob_with_dict)  # tự đọc dict từ header
-# Hoặc external dict
-orig = revhash.decompress(blob_with_dict, dict_data=dict_data)
+# Embedded dict: no need to pass again on decompress
+orig = revhash.decompress(blob_with_dict)
 assert orig == b"hello " * 2000
-print("dict PASS", len(dict_data))
 ```
 
 ### Auto-select
 
 ```python
-import revhash
 from revhash.algorithms import selector
-from revhash.algorithms.selector import compress_auto
-
 selector.auto_select(data_len=10*1024)        # <10KB → zstd-3 + dict, chunk 1M
 selector.auto_select(data_len=100*1024*1024)  # 100MB → zstd-3 streaming, chunk 4M
 selector.choose_best_chunk(500*1024*1024)     # → 4M (10MB-1GB), >1GB → 8M
-
-# Hoặc compress_auto
-data = b"hello world " * 1000
-dict_data = None
-blob = compress_auto(data, dict_data=dict_data, prefer="balanced")  # balanced/speed/ratio/archival
-assert revhash.decompress(blob) == data
-print("auto PASS", len(blob))
 ```
 
-### Nhúng 1 dòng (single-file bundle — PRIMARY)
+### Single-file embed (PRIMARY)
 
 ```bash
-# 1 dòng nhúng — copy 1 file là chạy, không pip
+# 1-line embed — copy 1 file, no pip needed
 cp revhash_embedded.py ./myproject/
-python -c "import revhash_embedded as revhash; print(revhash.compress_text('xin chào 🌍'))"
-# hoặc vendored folder
+python -c "import revhash_embedded as revhash; print(revhash.compress_text('hello'))"
+# vendored folder also works
 cp -r src/revhash ./myproject/vendor/
-# pip classic vẫn OK
 pip install -e . && python -c "import revhash; print(revhash.__version__)"
 ```
 
-> **DX:** `import revhash` (pip) ↔ `import revhash_embedded as revhash` (single-file) **byte-identical** 10 cases (`tests/test_embedded.py:18`), `get_available_codecs()` fallback `zstd→gzip→store` khi thiếu `zstandard` (`src/revhash/codec.py:287`).
+> **DX:** `import revhash` (pip) ↔ `import revhash_embedded as revhash` (single-file) **byte-identical** 10 cases (`tests/test_embedded.py:18`), `get_available_codecs()` fallback `zstd→gzip→store`.
 
 ---
 
 ## 💻 CLI
 
 ```bash
-# Nén / giải nén
+# Compress / decompress
 python -m revhash compress input.txt output.rvh --codec zstd --level 3 --chunk-size 4M
 python -m revhash decompress output.rvh restored.txt
-python -m revhash compress big.log big.rvh --dict dicts/vi_text.dict
+python -m revhash compress big.log big.rvh --dict dicts/my.dict
 
-# Info & verify (streaming cho file >50MB để tránh OOM)
+# Info & verify (streaming for >50MB to avoid OOM)
 python -m revhash info big.rvh
 python -m revhash verify big.rvh
 
-# Train dict
-python -m revhash train-dict corpus/*.txt --out dicts/vi_text.dict --size 112K --sample-size 16K
+# Train dictionary
+python -m revhash train-dict corpus/*.txt --out dicts/my.dict --size 112K --sample-size 16K
 
-# Benchmark (nhẹ, cho CI)
+# Benchmark (lightweight, for CI)
 python -m revhash benchmark --size 10M --codec all
 python -m revhash benchmark --size 100M --codec zstd
 
-# Harness đầy đủ (Researcher)
+# Full harness (Researcher)
 python benchmarks/bench_runner.py        # whole-file vs chunked, 9 codecs
 python benchmarks/bench_extra.py         # streaming single-frame vs dict vs memory
-python benchmarks/run_benchmark.py       # Verifier harness (so baseline, in bảng)
+python benchmarks/run_benchmark.py       # Verifier harness (comparison table)
 ```
 
 ---
 
-## 🧬 Format (frozen `docs/api.md` §3)
+## 🧬 Binary Format (frozen `docs/api.md` §3)
 
 ```
 [Header 23B] = magic b"RVH1" (4) | version 1 (1) | codec_id 0-4 (1) | level (1) | chunk_size LE (4) | dict_len LE (4) | original_size LE (8)
-[dict_data N] (N=dict_len, chỉ zstd)
-[compressed_stream] — single-frame zstd `stream_writer` giữ window xuyên chunk → 0% overhead; fallback gzip/lzma/brotli/store
+[dict_data N] (N=dict_len, zstd only)
+[compressed_stream] — single-frame zstd `stream_writer` keeps window across chunks → 0% overhead; fallback gzip/lzma/brotli/store
 [Footer] = per_chunk_crc32 LE array (Nc*4, Nc=ceil(orig/chunk)) | global_sha256 (32) | magic b"RVHE" (4)
-# UNKNOWN stream (non-seekable pipe): footer chỉ SHA+MAGIC (36B), Nc=0, per-chunk CRC bỏ qua
+# UNKNOWN stream (non-seekable pipe): footer only SHA+MAGIC (36B), Nc=0
 ```
 
-**Overhead:** `23 + dict_len + Nc*4 +36` bytes. Với 100MB/4M → Nc=25 → footer 136B.
-
-**Codec map:** `0=store`, `1=gzip`, `2=zstd` (default), `3=lzma`, `4=brotli`.
+**Overhead:** `23 + dict_len + Nc*4 +36` bytes. For 100MB/4M → Nc=25 → footer 136B. **Codec map:** `0=store`, `1=gzip`, `2=zstd` (default), `3=lzma`, `4=brotli`.
 
 ---
 
-## 📊 Benchmark chi tiết
+## 📊 Detailed Benchmark
 
-Xem `benchmarks/baseline_report.md` (304 dòng) và `reports/verification.md` §9.
+See `benchmarks/baseline_report.md` (304 lines) and `reports/verification.md` §9.
 
 **Whole-file 10 MB text_repeat:**
 
@@ -296,115 +265,65 @@ Xem `benchmarks/baseline_report.md` (304 dòng) và `reports/verification.md` §
 | brotli-6 | 0.00006 | 1318 | 875 |
 | brotli-11 | 0.00004 | 88 | 895 |
 
-**Chunked independent overhead (100 MB):** gzip +12%, lzma +433%, zstd +530%, brotli +5100% — nhưng **streaming single-frame zstd 0%** (chìa khóa unlimited).
+**Chunked independent overhead (100 MB):** gzip +12%, lzma +433%, zstd +530%, brotli +5100% — but **streaming single-frame zstd 0%** (key to unlimited).
 
-**Verifier revhash với header (10 MB):** zstd 0.000151 (+0.7% overhead header vs baseline raw 0.00015) — negligible.
-
-**Gzip vs zstd improvement:** 1MB **87.7% (8.1×)**, 10MB **96.9% (32.5×)** — vượt target ≥15% cho ≥1MB (10KB chỉ 9% do header 59B dominates).
+**Improvements:** 1MB **87.7% (8.1×)**, 10MB **96.9% (32.5×)** vs gzip.
 
 ---
 
-## ✅ Verification (Verifier 154/154 PASS — v0.2.1, v0.3 polish giữ)
+## ✅ Verification (155/155 PASS)
 
-Chạy `pytest tests -q` (7s, Python 3.12.10, `__version__ 0.3.0`):
+Run `pytest tests -q` (7s, Python 3.12.10, `__version__ 0.3.0`):
 
-- **Multi-size:** 0B,1B,100B,1KB,10KB,1MB,10MB,50MB GenReader streaming, 200MB mock 1GB, 20MB file — tất cả SHA256 byte-identical.
-- **O1 memory:** 10MB peak 20.58MB, 50MB peak 51MB, rss 46MB — đều <150MB; `CountingReader` chứng minh không `read(-1)`.
-- **Tamper:** 100/100 fuzz single-byte flip → `verify False` + `RevHashCorruptedError` 100% detection (CRC/SHA).
-- **Fuzz:** 100 random blobs seed 42 (0-10KB, codecs/chunks random) → 100/100 roundtrip + tamper.
-- **Dict:** 10KB raw 79.4% saving (170→35B), 100KB 91% (440→38B) — khớp research 80%.
-- **CLI:** compress/info/verify/decompress/train-dict/benchmark đều chạy.
+- **Multi-size:** 0B,1B,100B,1KB,10KB,1MB,10MB,50MB streaming, 200MB mock 1GB, 20MB file — all SHA256 byte-identical.
+- **O1 memory:** 10MB peak 20MB, 50MB peak 51MB — all `<150MB`.
+- **Tamper:** 100/100 fuzz single-byte flip → `verify False` + `RevHashCorruptedError`.
+- **Fuzz:** 100 random blobs (codecs/chunks random) → 100/100 roundtrip + tamper.
+- **Dict:** 10KB raw 79% saved, 100KB 91% — matches research.
+- **CLI:** compress/info/verify/decompress/train-dict/benchmark all work.
 
-Xem `reports/verification.md` (580 dòng) + `reports/verification_filetext.md` (432 dòng, 154/154) + `reports/verification_awesome.md` (upcoming `pytest` 150+ + `mypy`/`ruff` + `benchmark` 32.5×).
-
----
-
-## 🔍 Critic Audit & Fixes
-
-**Critic** (`reports/critique.md` 300 dòng) tìm 7 risks:
-
-| # | Risk | Severity | Status |
-|---|------|----------|--------|
-| 1 | Header `chunk_size`/`level` không MAC → tamper cùng Nc vẫn `verify True` | HIGH | **Documented** (cần format change v0.2) |
-| 2 | `decompress_stream` non-seekable `reader.read()` toàn bộ → OOM cho pipe 10GB | CRITICAL | **Fixed** — `SpooledTemporaryFile` 10MB+disk, guard >100MB |
-| 3 | `header.py` dead heuristic UNKNOWN parse_footer | HIGH | **Fixed** — simplified |
-| 4 | `cli.py` `eval()` arithmetic bomb | HIGH | **Fixed** — removed eval |
-| 5 | Triple auto-store fallback không nhất quán | MEDIUM | Correct but not deduped (v0.2) |
-| 6 | `get_info` UNKNOWN decompress <20M → O1 violation | MEDIUM | Documented |
-| 7 | `dict_len`/`chunk_size` không giới hạn → OOM injection | MEDIUM | **Fixed** — limit [1K,64M] + 256KB |
-
-Chi tiết fixes xem `reports/fix_report.md`. Sau fix re-test **108/108 PASS** không regress.
+See `reports/verification.md` + `reports/verification_filetext.md` (155/155).
 
 ---
 
-## ⚠️ Limitations (v0.3.0 — kế thừa v0.2.1)
+## 🔍 Audit & Limitations (v0.3.0)
 
-**Được document rõ, sẽ fix/bump format trong v0.4 (không breaking v0.3):**
+**Critic found 7 risks, 5 fixed:**
 
-1. **Header integrity:** `verify` chỉ cover payload (SHA per-chunk CRC + global SHA). `chunk_size`/`level` tamper mà giữ `Nc` unchanged (ví dụ 5KB với chunk 1M→4M) vẫn `verify True`. `original_size`/`magic`/`codec` thì có check. Nếu cần header authenticity, thêm HMAC ngoài hoặc đợi v0.2 (`header_crc` + version bump).
+| # | Risk | Status |
+|---|------|--------|
+| 1 | Header `chunk_size`/`level` not MAC → tamper same Nc still `verify True` | Documented (needs format bump v0.4) |
+| 2 | `decompress_stream` non-seekable `read()` → OOM 10GB pipe | Fixed `SpooledTemporaryFile` + guard >100MB |
+| 7 | `chunk_size`/`dict_len` unlimited → OOM injection | Fixed limit [1K,64M] + 256KB |
 
-2. **Non-seekable streaming (pipe/socket) >100MB:** `compress_stream` cho pipe đã O1 (UNKNOWN footer 36B), nhưng `decompress_stream` qua pipe hiện chỉ hỗ trợ blob ≤100MB (buffer ra `SpooledTemporaryFile` 10MB RAM + disk). Với blob >100MB qua pipe sẽ raise `CorruptedError: non-seekable blob >100MB — use file`. Hãy dùng `compress_file`/`decompress_file` (seekable) cho file lớn.
-
-3. **`info`/`verify` CLI cho file >50MB:** Dùng header-only streaming info (không load toàn bộ). `verify` cho >50MB sẽ stream decompress ra temp file (O1 nhưng tốn disk). Đã fix OOM nhưng cần disk.
-
-4. **Small file header overhead:** File <1KB bị phình (ratio >1). Đã có auto-store fallback (lưu raw nếu `comp > orig`), nhưng overhead header 23+36=59B vẫn lớn cho tiny. Khuyến nghị `should_use_dict` heuristic hoặc gộp nhiều small file.
-
-5. **Dict overhead:** Với dict 4KB, file 10KB total blob lớn hơn (424B vs 232B) dù raw saving 79%. Chỉ dùng dict cho `file <64KB` (small) hoặc `≥100KB` amortized — đã implement `should_use_dict`.
-
-6. **`dst=None` OOM guard (NEW v0.2.1):** `compress_file(src, None)` / `decompress_file(blob, None)` với `src` file `>100MB` hoặc `blob` `original_size >100MB` → `ValueError: refusing to load large file (>100MB) into RAM with dst=None — use dst=Path(...) for O1 streaming` (`src/revhash/file_text.py:104`, `file_text.py:122`, `file_text.py:134`). Tránh OOM khi `dst=None` load toàn bộ vào RAM. Dùng `compress_file(src, Path(dst))` để streaming O1.
-
-7. **Header MAC chưa cover `chunk_size`/`level`:** `verify` chỉ check payload (CRC+SHA), `chunk_size`/`level` tamper cùng `Nc` → vẫn `verify True` (đã ghi `docs/research_awesome.md` §3 P2-1, `reports/critique.md`). Cần `header_crc` + version bump trong v0.4.
-
-> **Tóm tắt v0.2.1 guard:** `header MAC` (payload-only), `non-seekable >100MB` (pipe chỉ ≤100MB, `stream.py:622` `SpooledTemporaryFile`), `dst=None OOM` (`file_text.py:104` `>100MB → ValueError`). Tất cả đã có `ValueError`/`CorruptedError` rõ + doc `docs/api_filetext.md:5`.
+**Limitations (documented for v0.4):** header MAC payload-only, non-seekable pipe ≤100MB, `dst=None` OOM guard `>100MB → ValueError` (`file_text.py:104`), small file header overhead 59B.
 
 ---
 
-## 📚 Docs
+## 📚 Docs & Roadmap
 
-- `TEAM_PLAN.md` — kế hoạch team unlimited
-- `TEAM_PLAN_AWESOME.md` — kế hoạch polish awesome v0.3 (M0-M6)
-- `TEAM_STATE.md` — trạng thái milestones v0.1 + v0.2 + v0.2.1 + v0.3
-- `CHANGELOG.md` — Keep-a-Changelog v0.1 → v0.3 (NEW)
-- `LICENSE` — MIT `revhash Team` (NEW)
-- `docs/research.md` — khảo sát 8 thuật toán, streaming vs chunked, dict
-- `docs/research_embedded.md` — 5 pattern nhúng + bundle 85KB
-- `docs/research_filetext.md` — file↔text flex 4×3 + `dst None/Path`
-- `docs/research_awesome.md` — 8 tiêu chí awesome × 3 libs (requests/rich/pydantic) + polish P0/P1
-- `docs/api.md` — frozen API + header spec + streaming contract (`Version: 0.3.0`)
-- `docs/api_embedded.md` — embedded single-file + `get_available_codecs` (`Version: 0.3.0`)
-- `docs/api_filetext.md` — file↔text flex 6 ví dụ (`Version: 0.3.0`)
-- `benchmarks/baseline_report.md` — số liệu baseline 10KB→100MB
-- `benchmarks/results_filetext.json:277` — 10MB zstd 0.000151 vs gzip 0.00491 = 32.5×
-- `examples/embed_demo.py` + `file_text_demo.py` + `awesome_demo.py` (NEW 5 demos PASS)
-- `reports/verification.md` — báo cáo Verifier PASS (108)
-- `reports/verification_filetext.md` — 154 PASS + file↔text flex
-- `reports/critique.md` — báo cáo Critic WARN
-- `reports/fix_report.md` — fixes sau Critic
-
----
-
-## 🗓 Roadmap
-
-- **v0.1.0 (DONE):** O1 streaming seekable, 108 tests, ratio 32× gzip, fixes 5/7 risks, limitations documented.
-- **v0.2.0-embedded (DONE):** single-file `revhash_embedded.py` 89KB `<500KB`, `compress_text` strict, `get_available_codecs` fallback, 142 tests.
-- **v0.2.1-filetext (DONE):** file↔text flex 4×3 `compress_file(text,None)→bytes` + `decompress_file(blob,None,as_text=True)`, `dst=None` OOM guard `>100MB`, `force_text`, 154 tests, 32.5× giữ.
-- **v0.3.0 (hiện tại):** polish toàn diện — 154+ tests `ruff`/`mypy` PASS, `README` 5 ví dụ copy-paste, `examples/awesome_demo.py` 5 demos PASS, `CHANGELOG.md` Keep-a-Changelog, `LICENSE` MIT, `__version__ 0.3.0` align + `__bundle_hash__` sync, `benchmark --size 100M` `<10s`.
-- **v0.4 (next):** Header CRC/SHA cover header (version bump), `compressed_len` field cho non-seekable O1 thực sự, dedup store fallback, real 100MB disk test, `readinto` type hints, CI `GitHub Actions`.
+- `docs/research.md` — 8 algorithms, streaming vs chunked
+- `docs/api.md` — frozen API + streaming contract
+- `benchmarks/baseline_report.md` — baseline 10KB→100MB
+- `examples/diverse_file_demo.py` — 8 diverse file demos (**NEW**)
+- `CHANGELOG.md` — v0.1 → v0.3
+- Roadmap: v0.1 O1 streaming → v0.2 embed 101KB → v0.2.1 file↔text flex → **v0.3 awesome** polish → v0.4 header CRC + `compressed_len` field + CI
 
 ---
 
 ## 🤝 Contribute
 
 ```bash
-pytest tests -q                 # 154 tests (108 + 12 file↔text + 18 embedded + 16 text)
-python benchmarks/run_benchmark.py  # 10MB zstd 0.000151 vs gzip 0.00491 = 32.5×
+pytest tests -q                 # 155 tests
+python benchmarks/run_benchmark.py
 python -m revhash benchmark --size 10M --codec all
-python examples/awesome_demo.py  # 5 demos PASS (text→bytes, file→file O1, as_text, force_text, fallback+bundle)
-python -m revhash --help        # 6 commands: compress/decompress/info/verify/train-dict/benchmark
+python examples/awesome_demo.py  # 5 demos PASS
+python examples/diverse_file_demo.py  # 8 diverse file demos PASS
+python -m revhash --help        # 6 commands
 ```
 
-Issues & feedback: [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode) (mention Meta Muse Spark).
+Issues: [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode)
 
 ---
 
-*— Team revhash (Coordinator + Researcher + Core + Optimization + Verifier + Critic) — 2026-08-26 — built with teamwork-preview workflow*
+*— Team revhash — built with teamwork-preview workflow*
